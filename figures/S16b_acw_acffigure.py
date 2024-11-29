@@ -1,4 +1,3 @@
-
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
@@ -21,5 +20,22 @@ ax.plot(lags, mean_acf.T, alpha=0.5)
 ax.spines[["right", "top"]].set_visible(False)
 ax.set_xlabel("Lags (s)")
 ax.set_ylabel("Autocorrelation")
+ax.set_xlim(0, 0.25)
 
 f.savefig(join(figpath, "acf_mean.png"), dpi=800, transparent=True)
+###### For gimmick
+mean_1d_acf = np.nanmean(mean_acf, axis=0)
+f, ax = plt.subplots(
+    
+)
+ax.plot(lags, mean_1d_acf, alpha=1.0, linewidth=4, color="k")
+ax.spines[["right", "top"]].set_visible(False)
+ax.set_xlabel("Lags")
+ax.set_ylabel("Autocorrelation")
+ax.set_xlim(0, 0.25)
+# hide x and y ticks
+ax.set_xticks([])
+ax.set_yticks([])
+
+
+f.savefig(join(figpath, "acf_mean_1d.png"), dpi=800, transparent=True)
