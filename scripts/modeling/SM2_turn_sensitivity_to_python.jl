@@ -23,16 +23,15 @@ taskvars = ["ERF (ROI 1)", "ERF (ROI 2)"]
 
 param = ["A_F", "A_L", "A_B", "gamma_1"]
 
-jldsave(
-    "/BICNAS2/ycatal/erf_acw2/results/modeling/results/sensitivity_results_pythonic.jld2";
-    rest_s1=rest_s1,
-    rest_st=rest_st,
-    task_s1=task_s1,
-    task_st=task_st,
-    rest_s1_ci=rest_s1_ci,
-    rest_st_ci=rest_st_ci,
-    task_s1_ci=task_s1_ci,
-    task_st_ci=task_st_ci,
-    restvars=restvars,
-    taskvars=taskvars,
-    param=param)
+jldsave("/BICNAS2/ycatal/erf_acw2/results/modeling/results/sensitivity_results_pythonic.jld2";
+        rest_s1=rest_s1,
+        rest_st=rest_st,
+        task_s1=task_s1,
+        task_st=task_st,
+        rest_s1_ci=rest_s1_ci,
+        rest_st_ci=rest_st_ci,
+        task_s1_ci=task_s1_ci,
+        task_st_ci=task_st_ci,
+        restvars=restvars,
+        taskvars=taskvars,
+        param=param)
