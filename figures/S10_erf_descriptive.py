@@ -57,3 +57,24 @@ for i, i_erf in enumerate(erfs):
     [j.set_fontsize(8) for j in plot.get_children()[-2].get_yticklabels()]
     plt.suptitle(erfnames[i])
     plt.savefig(pathjoin(figfolder, f"{taskname}_fig2a_{erf_savenames[i]}.jpg"), dpi=800)
+
+# Create Schematic Figure
+plt.rcParams.update({"font.size": 28, "axes.labelweight": "bold"})
+i_erf = erfs[0]
+# erf_np = np.mean(i_erf.data, axis=0)
+erf_np = i_erf.data[15, :]
+
+f, ax = plt.subplots(figsize=(8,8))
+
+ax.plot(erf_np, alpha=1.0, linewidth=4, color="k")
+ax.spines[["right", "top"]].set_visible(False)
+ax.set_xlabel("Time")
+ax.set_ylabel("Event-Related Activity")
+# ax.set_xlim(0, 0.25)
+# hide x and y ticks
+ax.set_xticks([])
+ax.set_yticks([])
+
+
+f.savefig(pathjoin(figfolder, "erf_1d.png"), dpi=800, transparent=True)
+
