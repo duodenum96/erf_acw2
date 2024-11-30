@@ -3,9 +3,9 @@ using JLD2
 using BenchmarkTools
 using Plots
 using Statistics
-include("/BICNAS2/ycatal/erf_acw/scripts/model/src_jansenrit.jl")
+include("/BICNAS2/ycatal/erf_acw2/scripts/modeling/src_jansenrit.jl")
 
-savepath = "/BICNAS2/ycatal/erf_acw/scripts/model"
+savepath = "/BICNAS2/ycatal/erf_acw2/scripts/modeling/results"
 
 gamma_1_values = collect(40:1:70)
 ngamma = length(gamma_1_values)
@@ -14,7 +14,7 @@ p, x0, tspan, tsteps = get_default_param("task", 1)
 prob = SDEProblem(jansenrit_1d!, jansenrit_1d_noise!, x0, tspan, p)
 ensembleprob = EnsembleProblem(prob)
 
-nsim = 20
+nsim = 40
 
 acw50s = zeros((nsim, ngamma))
 erfs = zeros((nsim, ngamma))

@@ -13,7 +13,7 @@ p, x0, tspan, tsteps = get_default_param("rest", 1)
 prob = SDEProblem(jansenrit_1d!, jansenrit_1d_noise!, x0, tspan, p)
 ensembleprob = EnsembleProblem(prob)
 
-nsim = 20
+nsim = 40
 
 acw50s = zeros((nsim, ngamma))
 for (i, gamma) in enumerate(gamma_1_values)
