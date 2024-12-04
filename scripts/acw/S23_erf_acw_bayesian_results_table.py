@@ -10,8 +10,11 @@ import arviz.labels as azl
 import pingouin as pg
 import os
 import cloudpickle
-from erf_acw2.src_importdata import get_template_bad
+from erf_acw2.src import p_direction, rope, plot_channel_effects, create_channel_mask
+import arviz as az
+from erf_acw2.src_importdata import get_template_bad, shiftedColorMap
 import mne
+import matplotlib as mpl
 
 def zscore(x):
     return (x - np.mean(x)) / np.std(x)
@@ -31,381 +34,231 @@ resultpath = "/BICNAS2/ycatal/erf_acw2/results/hierarchical_model"
 figpath = "/BICNAS2/ycatal/erf_acw2/figures/figs/figure5"
 figpath_supp = "/BICNAS2/ycatal/erf_acw2/figures/figs/figure5/supplementary"
 
+
 data = pd.read_csv("/BICNAS2/ycatal/erf_acw2/results/data_st.csv")
-results = az.from_netcdf(join(resultpath, "erf_acw_hierarchical_take3.cdf"))
-model = cloud_pklload(join(resultpath, "erf_acw_hierarchical_take3.pkl"))
-
-with model:
-    pm.sample_posterior_predictive(results, extend_inferencedata=True)
-
-f, ax = plt.subplots(2)
-az.plot_ppc(results, num_pp_samples=20, kind="kde", ax=ax[0], mean=False)
-az.plot_ppc(results, num_pp_samples=20, kind="cumulative", ax=ax[1], mean=False)
-ax[0].set_xlim((-3, 3))
-ax[1].set_xlim((-3, 3))
-ax[0].set_xlabel("Posterior (ACW~ERF)")
-ax[1].set_xlabel("Posterior (ACW~ERF)")
-f.savefig(join(figpath_supp, "posterior_predictive_acw_erf.jpg"), dpi=800)
-
-# coords = {"beta_offset_cluster_erf": (["Encode Cluster #" + str(i) for i in range(1, 5)] +
-#                        ["Probe Cluster #" + str(i) for i in range(1, 3)])}
-labeller = azl.MapLabeller(
-    var_name_map={
-        "mu_beta_erf": r"$\beta$",
-        "mu_alpha_erf": r"$\alpha$",
-        "gamma_beta_cluster_t": r"$\gamma_{cluster}$",
-        "gamma_beta_trial_t": r"$\gamma_{trial}$",
-        # "gamma_beta_channel_t": r"$\gamma_{channel}$",
-        "gamma_alpha_cluster_t": r"$\theta_{cluster}$",
-        "gamma_alpha_trial_t": r"$\theta_{trial}$",
-        # "gamma_alpha_channel_t": r"$\theta_{channel}$",
-    }
-)  # dim_map=coords)
-
-results.posterior["gamma_alpha_cluster_t"] = (
-    results.posterior["sigma_alpha_erf_cluster"]
-    * results.posterior["alpha_offset_cluster_erf"]
-)
-results.posterior["gamma_alpha_trial_t"] = (
-    results.posterior["sigma_alpha_erf_trial"]
-    * results.posterior["alpha_offset_trial_erf"]
-)
-# results.posterior["gamma_alpha_channel_t"] = (
-#     results.posterior["sigma_alpha_erf_channel"]
-#     * results.posterior["channel prior alpha_erf"]
-# )
-results.posterior["gamma_beta_cluster_t"] = (
-    results.posterior["sigma_beta_erf_cluster"]
-    * results.posterior["beta_offset_cluster_erf"]
-)
-results.posterior["gamma_beta_trial_t"] = (
-    results.posterior["sigma_beta_erf_trial"]
-    * results.posterior["beta_offset_trial_erf"]
-)
-# results.posterior["gamma_beta_channel_t"] = (
-#     results.posterior["sigma_beta_erf_channel"]
-#     * results.posterior["channel prior beta_erf"]
-# )
-# Change the font size in matplotlib rc parameters
-plt.rcParams["font.size"] = 16
-############### Forest Plot ############################
-f, ax = plt.subplots(2, 1, figsize=(16, 8))
-
-az.plot_forest(
-    results,
-    var_names=["mu_beta_erf"],
-    ax=ax[0],
-    combined=True,
-    colors="k",
-    labeller=labeller,
-    hdi_prob=0.94,
-)
-az.plot_forest(
-    results,
-    var_names=["gamma_beta_cluster_t", "gamma_beta_trial_t"],
-    ax=ax[1],
-    combined=True,
-    colors="k",
-    labeller=labeller,
-    hdi_prob=0.94,
-)
-ax[0].axvline(0, color="k", linestyle="--")
-ax[1].axvline(0, color="k", linestyle="--")
-ax[1].set_title("")
-ax[0].set_title(
-    r"ACW ~ $\alpha$ + $\theta_{cluster}$ + $\theta_{trial}$ + $\theta_{channel}$ + ($\beta$ + $\gamma_{cluster}$ + $\gamma_{trial}$ + $\gamma_{channel}$) $\times$ ERF"
-)
-f.savefig(join(figpath, "forest_mu_beta_erf_acw.jpg"))
-###########  Now do the intercepts
-
-f, ax = plt.subplots(2, 1, figsize=(16, 8))
-
-az.plot_forest(
-    results,
-    var_names=["mu_alpha_erf"],
-    ax=ax[0],
-    combined=True,
-    colors="k",
-    labeller=labeller,
-    hdi_prob=0.94,
-)
-az.plot_forest(
-    results,
-    var_names=["gamma_alpha_cluster_t", "gamma_alpha_trial_t"],
-    ax=ax[1],
-    combined=True,
-    colors="k",
-    labeller=labeller,
-    hdi_prob=0.94,
-)
-ax[0].axvline(0, color="k", linestyle="--")
-ax[1].axvline(0, color="k", linestyle="--")
-ax[1].set_title("")
-ax[0].set_title(
-    r"RT ~ $\alpha$ + $\theta_{clu}$ + $\theta_{tr}$ + $\theta_{ch}$ + ($\beta$ + $\gamma_{clu}$ + $\gamma_{tr}$ + $\gamma_{ch}$) $\times$ ERF"
-)
-f.savefig(join(figpath, "forest_mu_alpha_erf_acw.jpg"))
-
-########## Do a table of mean, HDI, rhat and effective sample size
-labeller2 = azl.MapLabeller(
-    var_name_map={
-        "alpha_offset_trial_erf": r"$\alpha_{trial}$",
-        "alpha_offset_cluster_erf": r"$\alpha_{cluster}$",
-        "channel prior alpha_erf": r"$\alpha_{channel}$",
-        "beta_offset_trial_erf": r"$\beta_{trial}$",
-        "beta_offset_cluster_erf": r"$\beta_{cluster}$",
-        "channel prior beta_erf": r"$\beta_{channel}$",
-        "mu_alpha_erf": r"$\alpha$",
-        "mu_beta_erf": r"$\beta$",
-        "length_scale_alpha_erf": r"$\lambda_{alpha}$",
-        "length_scale_beta_erf": r"$\lambda_{beta}$",
-        "eta_sq_alpha_erf": r"$\eta^{2}_{alpha}$",
-        "eta_sq_beta_erf": r"$\eta^{2}_{beta}$",
-        "sigma_alpha_erf_cluster": r"$\sigma_{alpha, cluster}$",
-        "sigma_alpha_erf_trial": r"$\sigma_{alpha, trial}$",
-        # "sigma_alpha_erf_channel": r"$\sigma_{alpha, channel}$",
-        "sigma_beta_erf_cluster": r"$\sigma_{beta, cluster}$",
-        "sigma_beta_erf_trial": r"$\sigma_{beta, trial}$",
-        # "sigma_beta_erf_channel": r"$\sigma_{beta, channel}$",
+data = data.rename(
+    columns={
+        "erfs": "ERF",
+        "restacws": "ACW",
+        "rts": "RT",
+        "clusters": "Cluster",
+        "subjects": "Subject",
+        "channels": "Channel",
+        "erftype": "Trial",
     }
 )
+data2 = data.copy()
+data2["ERF"] = zscore(data2["ERF"])
+data2["ACW"] = zscore(data2["ACW"])
+data2["RT"] = zscore(data2["RT"])
+data3 = data2.copy()
+data3["Channel"] = [str(i) for i in data2["Channel"]]
+data3 = data3.dropna()
+
+
+model_formula = (
+    "ACW ~ 1 + ERF + (1|Cluster) + (1|Channel) + (1|Trial)"
+    " + (ERF|Cluster) + (ERF|Channel) + (ERF|Trial)"
+)
+
+model_priors = {
+    "sigma": bmb.Prior("Exponential", lam=1),
+    "ERF": bmb.Prior("Normal", mu=0, sigma=1),
+    "Intercept": bmb.Prior("Normal", mu=0, sigma=1),
+    "1|Channel": bmb.Prior("Normal", mu=0, sigma=bmb.Prior("Exponential", lam=1)),
+    "1|Trial": bmb.Prior("Normal", mu=0, sigma=bmb.Prior("Exponential", lam=1)),
+    "1|Cluster": bmb.Prior("Normal", mu=0, sigma=bmb.Prior("Exponential", lam=1)),
+    "ERF|Channel": bmb.Prior("Normal", mu=0, sigma=bmb.Prior("Exponential", lam=1)),
+    "ERF|Trial": bmb.Prior("Normal", mu=0, sigma=bmb.Prior("Exponential", lam=1)),
+    "ERF|Cluster": bmb.Prior("Normal", mu=0, sigma=bmb.Prior("Exponential", lam=1)),
+    "nu": bmb.Prior("Exponential", lam=1),
+}
+
+cluster_names = [
+    "Enc #1",
+    "Enc #2",
+    "Enc #3",
+    "Enc #4",
+    "Prb #1",
+    "Prb #2",
+]
+trial_names = ["efh", "efs", "es", "pfh", "pfs", "ps"]
+unique_channels = data3["Channel"].unique()
+coordinates_dict = {
+    "Cluster": cluster_names,
+    "Trial": trial_names,
+    "Channel": unique_channels,
+}
+
+model = bmb.Model(
+    model_formula,
+    data3,
+    priors=model_priors,
+    family="t",
+    noncentered=True,
+    categorical=["Channel", "Trial", "Cluster"],
+)
+model.build()
+
+results = az.from_netcdf(join(resultpath, "idata_acw_erf.nc"))
+results = results.assign_coords(
+    {
+        "Cluster": cluster_names,
+        "Trial": trial_names,
+        "Channel": unique_channels,
+        "Cluster__factor_dim": cluster_names,
+        "Trial__factor_dim": trial_names,
+        "Channel__factor_dim": unique_channels,
+    }
+)
+# Create new variables ERF + ERF|Channel, ERF + ERF|Trial, ERF + ERF|Cluster
+results.posterior["ERF + ERF|Channel"] = (
+    results.posterior["ERF"] + results.posterior["ERF|Channel"]
+)
+results.posterior["ERF + ERF|Trial"] = (
+    results.posterior["ERF"] + results.posterior["ERF|Trial"]
+)
+results.posterior["ERF + ERF|Cluster"] = (
+    results.posterior["ERF"] + results.posterior["ERF|Cluster"]
+)
+summary = az.summary(results, hdi_prob=0.94)
+# Add columns for pd and rope
+varnames_for_pd_rope = [
+    "ERF",
+    "1|Channel",
+    "1|Trial",
+    "1|Cluster",
+    "ERF|Channel",
+    "ERF|Trial",
+    "ERF|Cluster",
+    "ERF + ERF|Channel",
+    "ERF + ERF|Trial",
+    "ERF + ERF|Cluster",
+]
+summary["pd"] = np.nan
+summary["rope"] = np.nan
+
+for varname in varnames_for_pd_rope:
+    print(varname)
+    pd = p_direction(results, varname)
+    r = rope(results, varname)
+    if type(r) == np.float64:
+        summary.loc[varname, "pd"] = pd
+        summary.loc[varname, "rope"] = r
+    else:
+        for i in range(len(r)):
+            effect, coordinate = varname.split("|")
+            name = f"{varname}[{coordinates_dict[coordinate][i]}]"
+            summary.loc[name, "pd"] = pd[i]
+            summary.loc[name, "rope"] = r[i]
+
+summary.to_csv(join(figpath_supp, "summary_acw_erf.csv"))
+# Do prior and posterior predictive check
+prior_results = model.prior_predictive()
+model.predict(results, kind="response")
+
+plt.rcParams.update({"font.size": 12})
+f, ax = plt.subplots(2, 1, figsize=(7, 10), dpi=300)
+az.plot_ppc(prior_results, ax=ax[0], num_pp_samples=100, group="prior")
+ax[0].set_xlim(-15, 15)
+ax[0].set_title("Prior predictive check")
+ax[0].set_xlabel("")
+
+# Posterior predictive check
+
+az.plot_ppc(results, ax=ax[1], num_pp_samples=100, group="posterior")
+ax[1].set_xlim(-5, 5)
+ax[1].set_title("Posterior predictive check")
+ax[1].set_xlabel("ACW")
+f.savefig(join(figpath_supp, "prior_and_posterior_acw_erf.png"), dpi=300)
+
 var_names = [
-        "alpha_offset_trial_erf",
-        "alpha_offset_cluster_erf",
-        "beta_offset_trial_erf",
-        "beta_offset_cluster_erf",
-        "mu_alpha_erf",
-        "mu_beta_erf",
-        "length_scale_alpha_erf",
-        "length_scale_beta_erf",
-        "eta_sq_alpha_erf",
-        "eta_sq_beta_erf",
-        "channel prior alpha_erf",
-        "channel prior beta_erf",
-        "sigma_alpha_erf_cluster",
-        "sigma_alpha_erf_trial",
-        # "sigma_alpha_erf_channel",
-        "sigma_beta_erf_cluster",
-        "sigma_beta_erf_trial",
-        # "sigma_beta_erf_channel",
-    ]
-summary_df = az.summary(
-    results,
-    var_names=var_names,
-    labeller=labeller2,
-    hdi_prob=0.94,
-)
+    "Intercept",
+    "ERF",
+    "nu",
+    "sigma",
+    "1|Trial",
+    "1|Cluster",
+    "1|Channel",
+    "1|Trial_sigma",
+    "1|Cluster_sigma",
+    "1|Channel_sigma",
+    "ERF|Trial",
+    "ERF|Cluster",
+    "ERF|Channel",
+    "ERF|Trial_sigma",
+    "ERF|Cluster_sigma",
+    "ERF|Channel_sigma",
+]
 
-summary_df.to_csv(join(figpath_supp, "erf_acw_diagnostic_table.csv"))
-
-############# Now do trace plots ############
+# Trace plots
+plt.close()
 az.plot_trace(
     results,
+    combined=True,
+    compact=True,
+    figsize=(12, 58),
     var_names=var_names,
-    labeller=labeller2,
-    figsize=(10, 70)
 )
-plt.savefig(join(figpath_supp, "trace_erf_acw.png"))
-######## Prior vs posterior plot #############
-# This is not very realistic, I'll reconsider this, keeping like this for now
-"""with model:
-    prior = pm.sample_prior_predictive(draws=100)
+plt.savefig(join(figpath_supp, "trace_acw_erf.png"), dpi=300)
 
-az.rcParams["plot.max_subplots"] = 600
-# plt.rcParams["plot.max_subplots"] = 200
-axs = az.plot_posterior(results, 
-                 labeller=labeller2,
-                 var_names=var_names, group="posterior", 
-                 combine_dims={"chain", "draw", "Cluster", "Channel", "Trial"},
-                 rope_color='C2', ref_val_color='C1',
-                 figsize=(20,20),
-                 hdi_prob=0.94)
-az.plot_posterior(prior, 
-                 labeller=labeller2,
-                 var_names=var_names, group="prior", 
-                 combine_dims={"chain", "draw", "Cluster", "Channel", "Trial"},
-                 hdi_prob=0.94,
-                 rope_color='black', ref_val_color='black',
-                 ax=axs)
-plt.savefig(join(figpath_supp, "prior_vs_post_erf_rt.png"))
-"""
+# Forest plots of relevant parameters
+plt.rcParams.update({"font.size": 24})
+var_names_forest = ["ERF", "ERF|Trial", "ERF|Cluster", "ERF + ERF|Trial", "ERF + ERF|Cluster"]
+f, ax = plt.subplots(1, 1, figsize=(22, 12), dpi=300)
+az.plot_forest(results, 
+            var_names=var_names_forest, combined=True, ax=ax, rope=[-0.1, 0.1], colors="black")
+ax.set_title("ACW ~ ERF + ERF|Trial + ERF|Cluster + ERF|Channel")
+# plt.yticks(fontsize=24)
+plt.xticks(fontsize=24)
+ax.axvline(0, color="black", linestyle="--")
+f.savefig(join(figpath_supp, "forest_acw_erf.png"), dpi=300)
 
-########### Channel gamma / theta plotting #############
-
-gamma_beta_channel = results.posterior["channel prior beta_erf"].mean(dim=("draw", "chain")).values
-gamma_alpha_channel = results.posterior["channel prior alpha_erf"].mean(dim=("draw", "chain")).values
-gamma_beta_channel_hdi = az.hdi(results.posterior, var_names=["channel prior beta_erf"], hdi_prob=0.94)["channel prior beta_erf"].values
-gamma_alpha_channel_hdi = az.hdi(results.posterior, var_names=["channel prior alpha_erf"], hdi_prob=0.94)["channel prior alpha_erf"].values
-
+###### Topoplot of Channel Specific Effects #######
 
 template_good = get_template_bad(good=True)
-chans = data.dropna().channels.unique()
+chans = data.dropna().Channel.unique()
 chan_order = np.argsort(chans)
 
 info = template_good.pick(chans).info
-channel_coords = data.groupby("channels")[["xcoords", "ycoords"]].mean()
+channel_coords = data.groupby("Channel")[["xcoords", "ycoords"]].mean()
 coords = channel_coords.values
 
+plt.rcParams.update({"font.size": 24})
 
-# -- ALPHA -- #
-minval = gamma_alpha_channel_hdi.min()
-maxval = gamma_alpha_channel_hdi.max()
-fraction=0.05
-pad=0.04
-climval = np.max(np.abs([minval, maxval]))
-vlim = (-climval, climval)
+mask_erf = create_channel_mask(summary, "ERF|Channel")
+data_topo = results.posterior["ERF|Channel"].mean(dim=["chain", "draw"]).values
+hdi_topo = az.hdi(results, var_names="ERF|Channel", hdi_prob=0.94)["ERF|Channel"].values
+vlims = (np.min(hdi_topo), np.max(hdi_topo))
 
-f, ax = plt.subplots(1,3, layout="constrained")
-im0, cm0 = mne.viz.plot_topomap(
-        data=gamma_alpha_channel_hdi[chan_order, 0],
-        pos=info,
-        axes=ax.ravel()[0],
-        cmap="PiYG",
-        vlim=vlim,
-        show=False,
-        size=15,
-        res=800
-    )
-ax[0].set_title("6% HDI")
-im1, cm1 = mne.viz.plot_topomap(
-        data=gamma_alpha_channel[chan_order],
-        pos=info,
-        axes=ax.ravel()[1],
-        cmap="PiYG",
-        vlim=vlim,
-        show=False,
-        size=15,
-        res=800
-    )
-ax[1].set_title(r"$\theta_{channel}$" + "\n\nMean")
+plot_channel_effects(
+    data=data_topo,
+    hdi_data=hdi_topo,
+    info=info,
+    chan_order=chan_order,
+    vlim=vlims,
+    title="ERF|Channel",
+    figpath=join(figpath, "channels_erf_acw.jpg"),
+    mask=mask_erf
+)
 
-im2, cm2 = mne.viz.plot_topomap(
-        data=gamma_alpha_channel_hdi[chan_order, 1],
-        pos=info,
-        axes=ax.ravel()[2],
-        cmap="PiYG",
-        vlim=vlim,
-        show=False,
-        size=15,
-        res=800
-    )
-ax[2].set_title("94% HDI")
-f.colorbar(im2, fraction=fraction, pad=pad)
+mask_erf_plus = create_channel_mask(summary, "ERF + ERF|Channel")
+data_topo = results.posterior["ERF + ERF|Channel"].mean(dim=["chain", "draw"]).values
+hdi_topo = az.hdi(results, var_names="ERF + ERF|Channel", hdi_prob=0.94)["ERF + ERF|Channel"].values
+vlims = (np.min(hdi_topo), np.max(hdi_topo))
 
-f.savefig(join(figpath, "channels_theta_erf_acw.png"), dpi=500, transparent=True)
+# Maybe needed just in case for future
+# midpoint = 1 - vmax / (vmax + abs(vmin))
+# cmap = shiftedColorMap(mpl.cm.PiYG, midpoint=midpoint)
 
+plot_channel_effects(
+    data=data_topo,
+    hdi_data=hdi_topo,
+    info=info,
+    chan_order=chan_order,
+    vlim=vlims,
+    title="ERF + ERF|Channel",
+    figpath=join(figpath, "channels_erf_acw_plus.jpg"),
+    mask=mask_erf_plus
+)
 
-# -- BETA -- #
-minval = gamma_beta_channel_hdi.min()
-maxval = gamma_beta_channel_hdi.max()
-fraction=0.05
-pad=0.04
-climval = np.max(np.abs([minval, maxval]))
-vlim = (-climval, climval)
-
-f, ax = plt.subplots(1,3, layout="constrained")
-im0, cm0 = mne.viz.plot_topomap(
-        data=gamma_beta_channel_hdi[chan_order, 0],
-        pos=info,
-        axes=ax.ravel()[0],
-        cmap="PiYG",
-        vlim=vlim,
-        show=False,
-        size=15,
-        res=800
-    )
-ax[0].set_title("6% HDI")
-im1, cm1 = mne.viz.plot_topomap(
-        data=gamma_beta_channel[chan_order],
-        pos=info,
-        axes=ax.ravel()[1],
-        cmap="PiYG",
-        vlim=vlim,
-        show=False,
-        size=15,
-        res=800
-    )
-ax[1].set_title(r"$\gamma_{channel}$" + "\n\nMean")
-im2, cm2 = mne.viz.plot_topomap(
-        data=gamma_beta_channel_hdi[chan_order, 1],
-        pos=info,
-        axes=ax.ravel()[2],
-        cmap="PiYG",
-        vlim=vlim,
-        show=False,
-        size=15,
-        res=800
-    )
-ax[2].set_title("94% HDI")
-f.colorbar(im2, fraction=fraction, pad=pad)
-
-f.savefig(join(figpath, "channels_gamma_erf_acw.png"), dpi=500, transparent=True)
-
-
-#* Do channels and add beta to gamma ###############################
-
-beta_channel_i = results.posterior["beta_erf"].mean(dim=("draw", "chain")).values
-alpha_channel_i = results.posterior["alpha_erf"].mean(dim=("draw", "chain")).values
-beta_channel_hdi_i = az.hdi(results.posterior, var_names=["beta_erf"], hdi_prob=0.94)["beta_erf"].values
-alpha_channel_hdi_i = az.hdi(results.posterior, var_names=["alpha_erf"], hdi_prob=0.94)["alpha_erf"].values
-
-channel_idx = results.constant_data.Channel.values
-uniq_chan = np.unique(channel_idx)
-beta_channel = np.zeros(len(uniq_chan))
-alpha_channel = np.zeros(len(uniq_chan))
-beta_channel_hdi = np.zeros((len(uniq_chan), 2))
-alpha_channel_hdi = np.zeros((len(uniq_chan), 2))
-for chan in uniq_chan:
-    idx = np.where(channel_idx == chan)[0]
-    beta_channel[chan] = beta_channel_i[idx].mean()
-    alpha_channel[chan] = alpha_channel_i[idx].mean()
-    beta_channel_hdi[chan, :] = beta_channel_hdi_i[idx].mean(axis=0)
-    alpha_channel_hdi[chan, :] = alpha_channel_hdi_i[idx].mean(axis=0)
-
-minval = (beta_channel_hdi + gamma_beta_channel_hdi).min()
-maxval = (beta_channel_hdi + gamma_beta_channel_hdi).max()
-fraction=0.05
-pad=0.04
-climval = np.max(np.abs([minval, maxval]))
-vlim = (-climval, climval)
-
-
-f, ax = plt.subplots(1,3, layout="constrained")
-im0, cm0 = mne.viz.plot_topomap(
-        data=beta_channel_hdi[chan_order, 0] + gamma_beta_channel_hdi[chan_order, 0],
-        pos=info,
-        axes=ax.ravel()[0],
-        cmap="PiYG",
-        vlim=vlim,
-        show=False,
-        size=15,
-        res=800
-    )
-
-ax[0].set_title("6% HDI")
-im1, cm1 = mne.viz.plot_topomap(
-        data=beta_channel[chan_order] + gamma_beta_channel[chan_order],
-        pos=info,
-        axes=ax.ravel()[1],
-        cmap="PiYG",
-        vlim=vlim,
-        show=False,
-        size=15,
-        res=800
-    )
-ax[1].set_title(r"$\beta$ + $\gamma_{channel}$" + "\n\nMean")
-
-im2, cm2 = mne.viz.plot_topomap(
-        data=beta_channel_hdi[chan_order, 1] + gamma_beta_channel_hdi[chan_order, 1],
-        pos=info,
-        axes=ax.ravel()[2],
-        cmap="PiYG",
-        vlim=vlim,
-        show=False,
-        size=15,
-        res=800
-    )
-ax[2].set_title("94% HDI")
-f.colorbar(im2, fraction=fraction, pad=pad)
-
-f.savefig(join(figpath, "channels_beta_plus_gamma_erf_acw.png"), dpi=500, transparent=True)

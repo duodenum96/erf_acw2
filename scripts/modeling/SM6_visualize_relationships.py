@@ -103,14 +103,16 @@ pg.pairwise_corr(data, [["$\gamma_1$"], ["ACW (s)", "mERF"]], padjust="fdr_bh")
 example_gamma1s = [40, 50, 60]
 data_example = data[data["$\\gamma_1$"].isin(example_gamma1s)]
 
-(
+g = (
     so.Plot(data_example, x="ACW (s)", y="mERF", color="Color:\n$\\gamma_1$")
     .facet(col="$\\gamma_1$")
     .add(so.Dot(color="black"))
     .add(so.Line(color="black"), so.PolyFit(order=1))
     .label(title="$\\gamma_1$ = {}".format)
-    .save(join(figpath, "gamma1_scatterplots.jpg"), dpi=800)
+    .layout(size=(12, 4))
 )
+plt.legend("off")
+g.save(join(figpath, "gamma1_scatterplots.jpg"), dpi=800)
 
 # To calculate correlations, make each gamma1 value a seperate column, then put it into pg.pairwise_corr
 data_example_corr = []

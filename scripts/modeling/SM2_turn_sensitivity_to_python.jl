@@ -1,7 +1,7 @@
 using JLD2
 
-restsens = load("/BICNAS2/ycatal/erf_acw2/scripts/modeling/results/sobol_sensitivity_rest_final.jld2")["sensitivityresults"]
-tasksens = load("/BICNAS2/ycatal/erf_acw2/scripts/modeling/results/sobol_sensitivity_task_final.jld2")["sensitivityresults"]
+restsens = load("/BICNAS2/ycatal/erf_acw2/scripts/modeling/results/sensitivity/sobol_sensitivity_rest_final.jld2")["sensitivityresults"]
+tasksens = load("/BICNAS2/ycatal/erf_acw2/scripts/modeling/results/sensitivity/sobol_sensitivity_task_final.jld2")["sensitivityresults"]
 
 restsens.S1
 restsens.ST
@@ -18,12 +18,12 @@ rest_st_ci = restsens.ST_Conf_Int
 task_s1_ci = tasksens.S1_Conf_Int
 task_st_ci = tasksens.ST_Conf_Int
 
-restvars = ["ACW (ROI 1)", "ACW (ROI 2)"]
-taskvars = ["ERF (ROI 1)", "ERF (ROI 2)"]
+restvars = ["ACW (Region 1)", "ACW (Region 2)"]
+taskvars = ["ERF (Region 1)", "ERF (Region 2)"]
 
 param = ["A_F", "A_L", "A_B", "gamma_1"]
 
-jldsave("/BICNAS2/ycatal/erf_acw2/results/modeling/results/sensitivity_results_pythonic.jld2";
+jldsave("/BICNAS2/ycatal/erf_acw2/scripts/modeling/results/sensitivity/sensitivity_results_pythonic.jld2";
         rest_s1=rest_s1,
         rest_st=rest_st,
         task_s1=task_s1,

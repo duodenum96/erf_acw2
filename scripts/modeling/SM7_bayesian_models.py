@@ -54,7 +54,7 @@ data = pd.DataFrame(
     {
         "ACW": zscore(acw50s.ravel()), 
         "ERF": zscore(erfs.ravel()), 
-        "gamma_1": zscore(gamma1), 
+        "gamma_1": zscore(np.tile(gamma1, [nsim, 1]).T.ravel()), 
         "Color:\n$\\gamma_1$": np.tile(gamma1_cat, [nsim, 1]).T.ravel(), 
     }
 )
@@ -111,3 +111,72 @@ ax2.set_xlim(-0.12, 0.95)
 plt.tight_layout()
 plt.savefig(join(figpath, "forests_linregress_a2e_combined.jpg"), dpi=800)
 plt.close()
+
+######### Do prior predictive checks, trace plots, and posterior predictive checks
+
+# Prior predictive checks
+prior_pred_a2e = a2e_model.prior_predictive()
+prior_pred_a2e_g = a2e_g_model.prior_predictive()
+priors = [prior_pred_a2e, prior_pred_a2e_g]
+
+f, axs = plt.subplots(2, 1, figsize=(3, 6), sharex=True)
+for i, prior in enumerate(priors):
+    x = np.linspace(-2, 2, 10)
+    n_samples = 30
+    x_tiled = np.zeros((10, n_samples))
+    for j in range(n_samples):
+        x_tiled[:, j] = x
+    prior_pred_check = np.zeros((10, n_samples))
+    for j in range(n_samples):
+        prior_pred_check[:, j] = (prior.prior["Intercept"][0, np.random.randint(500)].to_numpy() + 
+            prior.prior["ACW"][0, np.random.randint(500)].to_numpy() * x_tiled[:, j])
+
+    for j in range(n_samples):
+        axs[i].plot(
+            x_tiled[:, j], 
+            prior_pred_check[:, j], 
+            c="k", alpha=0.1
+            )
+
+    axs[i].set_xlabel("ACW (stdz)")
+    axs[i].set_ylabel("mERF (stdz)")
+    axs[i].set_title(f"{all_model_names[i]}")
+
+f.suptitle("Prior predictive checks")
+f.savefig(join(figpath, "supplementary", f"prior_predictive_a2e.png"))
+
+# Posterior predictive checks
+
+a2e_model.predict(tr_a2e, kind="response")
+a2e_g_model.predict(tr_a2e_g, kind="response")
+
+f, axs = plt.subplots(2, 2, figsize=(8, 8), sharex=True)
+az.plot_ppc(tr_a2e, ax=axs[0, 0], num_pp_samples=20, kind="kde")
+az.plot_ppc(tr_a2e_g, ax=axs[1, 0], num_pp_samples=20, kind="kde")
+az.plot_ppc(tr_a2e, ax=axs[0, 1], num_pp_samples=20, kind="cumulative")
+az.plot_ppc(tr_a2e_g, ax=axs[1, 1], num_pp_samples=20, kind="cumulative")
+f.suptitle("Posterior predictive checks")
+axs[0, 0].set_title("Model 1: mERF ~ ACW")
+axs[1, 0].set_title("Model 2: mERF ~ ACW + $\gamma_1$")
+axs[0, 0].set_xlabel("")
+axs[0, 1].set_xlabel("")
+axs[1, 0].set_xlabel("mERF (stdz)")
+axs[1, 1].set_xlabel("mERF (stdz)")
+f.suptitle("Posterior predictive checks")
+f.savefig(join(figpath, "supplementary", f"posterior_predictive_a2e.png"))
+
+# Trace plots
+
+az.plot_trace(tr_a2e, figsize=(12, 18), var_names=["~mu"])
+plt.suptitle("Model 1: mERF ~ ACW")
+plt.savefig(join(figpath, "supplementary", f"trace_a2e.png"))
+
+az.plot_trace(tr_a2e_g, figsize=(12, 18), var_names=["~mu"])
+plt.suptitle("Model 2: mERF ~ ACW + $\gamma_1$")
+plt.savefig(join(figpath, "supplementary", f"trace_a2e_g.png"))
+
+# Save Arviz Summaries
+summary_a2e = az.summary(tr_a2e, var_names=["~mu"])
+summary_a2e_g = az.summary(tr_a2e_g, var_names=["~mu"])
+summary_a2e.to_csv(join(figpath, "supplementary", f"summary_a2e.csv"))
+summary_a2e_g.to_csv(join(figpath, "supplementary", f"summary_a2e_g.csv"))

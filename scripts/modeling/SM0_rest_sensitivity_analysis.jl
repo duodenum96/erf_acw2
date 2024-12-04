@@ -1,8 +1,8 @@
 # cd /BICNAS2/ycatal/erf_acw/scripts/model
-# nohup julia -t 72 sensitivity_analysis_rest_final.jl > log/gsa_rest_final.log &
-# pid: 3577118
+# nohup julia -t 12 sensitivity_analysis_rest_final.jl > log/gsa_rest_final.log &
+# pid: 3969012
 using LinearAlgebra
-BLAS.set_num_threads(72)
+BLAS.set_num_threads(12)
 
 
 using DifferentialEquations
@@ -12,18 +12,19 @@ using JLD2
 using QuasiMonteCarlo
 using Missings
 
-include("/BICNAS2/ycatal/erf_acw/scripts/model/src_jansenrit.jl")
-savepath = "/BICNAS2/ycatal/erf_acw/scripts/model/"
+include("/BICNAS2/ycatal/erf_acw2/scripts/modeling/src_jansenrit.jl")
+savepath = "/BICNAS2/ycatal/erf_acw2/scripts/modeling/"
 
 p, x0, tspan, tsteps = get_default_param("rest", 2)
 
 ######## Define ranges for parameters
-A_F_range = [0, 15]
-A_L_range = [0, 15]
-A_B_range = [0, 15]
+A_F_range = [0, 5]
+A_L_range = [0, 5]
+A_B_range = [0, 5]
 gamma_1_range = [40, 70]
 
 p_target_ranges = [A_F_range, A_L_range, A_B_range, gamma_1_range]
+
 
 prob = SDEProblem(jansenrit_2d_noLA!, jansenrit_2d_noise_noLA!, x0, tspan, p)
 
@@ -88,7 +89,7 @@ function sensitivity_parallel(p)
     acwresults_clean = copy(acwresults)
     for i in 1:size(acwresults, 1)
         row = acwresults[i, :]
-        idx_missing = isnan.(row)
+        idx_missing = ismissing.(row)
         row[idx_missing] .= median(skipmissing(row))
         acwresults_clean[i, :] = row
     end
@@ -97,6 +98,7 @@ function sensitivity_parallel(p)
 end
 
 N = 20000
+
 chunks = 5000
 lb = [A_F_range[1], A_L_range[1], A_B_range[1], gamma_1_range[1]]
 ub = [A_F_range[2], A_L_range[2], A_B_range[2], gamma_1_range[2]]
@@ -106,5 +108,5 @@ A, B = QuasiMonteCarlo.generate_design_matrices(N, lb, ub, sampler)
 
 m = gsa(sensitivity_parallel, Sobol(nboot=40), A, B; batch=true)
 
-save(joinpath(savepath, "sobol_sensitivity_rest_final.jld2"), Dict("sensitivityresults" => m))
+save(joinpath(savepath, "sobol_sensitivity_rest.jld2"), Dict("sensitivityresults" => m))
 println("done")
