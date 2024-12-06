@@ -14,6 +14,7 @@ from mne.filter import next_fast_len
 import arviz as az
 import matplotlib as mpl
 
+
 def calc_acw(ts, fs, nlags=None):
     """
     Parameters
@@ -446,7 +447,7 @@ def rope(idata, varname, rope_range=0.1, hdi_prob=0.94):
             data >= hdi[varname].values[0], data <= hdi[varname].values[1]
         )
         data_in_rope = np.logical_or(
-            data[data_in_hdi] <= -rope_range, data[data_in_hdi] >= rope_range
+            data[data_in_hdi] >= -rope_range, data[data_in_hdi] <= rope_range
         )
         return np.mean(data_in_rope)
     else:
@@ -458,10 +459,11 @@ def rope(idata, varname, rope_range=0.1, hdi_prob=0.94):
                 data >= hdi[varname].values[i][0], data <= hdi[varname].values[i][1]
             )
             data_in_rope = np.logical_or(
-                data[data_in_hdi] <= -rope_range, data[data_in_hdi] >= rope_range
+                data[data_in_hdi] >= -rope_range, data[data_in_hdi] <= rope_range
             )
             rope_result[i] = np.mean(data_in_rope)
         return rope_result
+
 
 import numpy as np
 import matplotlib as mpl
@@ -469,8 +471,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import AxesGrid
 
 
-def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
-    '''
+def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name="shiftedcmap"):
+    """
     Source: https://stackoverflow.com/questions/7404116/defining-the-midpoint-of-a-colormap-in-matplotlib
     Function to offset the "center" of a colormap. Useful for
     data with a negative min and positive max and you want the
@@ -482,7 +484,7 @@ def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
       start : Offset from lowest point in the colormap's range.
           Defaults to 0.0 (no lower offset). Should be between
           0.0 and `midpoint`.
-      midpoint : The new center of the colormap. Defaults to 
+      midpoint : The new center of the colormap. Defaults to
           0.5 (no shift). Should be between 0.0 and 1.0. In
           general, this should be  1 - vmax / (vmax + abs(vmin))
           For example if your data range from -15.0 to +5.0 and
@@ -491,39 +493,39 @@ def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
       stop : Offset from highest point in the colormap's range.
           Defaults to 1.0 (no upper offset). Should be between
           `midpoint` and 1.0.
-    '''
-    cdict = {
-        'red': [],
-        'green': [],
-        'blue': [],
-        'alpha': []
-    }
+    """
+    cdict = {"red": [], "green": [], "blue": [], "alpha": []}
 
     # regular index to compute the colors
     reg_index = np.linspace(start, stop, 257)
 
     # shifted index to match the data
-    shift_index = np.hstack([
-        np.linspace(0.0, midpoint, 128, endpoint=False), 
-        np.linspace(midpoint, 1.0, 129, endpoint=True)
-    ])
+    shift_index = np.hstack(
+        [
+            np.linspace(0.0, midpoint, 128, endpoint=False),
+            np.linspace(midpoint, 1.0, 129, endpoint=True),
+        ]
+    )
 
     for ri, si in zip(reg_index, shift_index):
         r, g, b, a = cmap(ri)
 
-        cdict['red'].append((si, r, r))
-        cdict['green'].append((si, g, g))
-        cdict['blue'].append((si, b, b))
-        cdict['alpha'].append((si, a, a))
+        cdict["red"].append((si, r, r))
+        cdict["green"].append((si, g, g))
+        cdict["blue"].append((si, b, b))
+        cdict["alpha"].append((si, a, a))
 
     newcmap = mpl.colors.LinearSegmentedColormap(name, cdict)
     mpl.colormaps.register(cmap=newcmap)
 
     return newcmap
 
-def plot_channel_effects(data, hdi_data, info, chan_order, vlim, title, figpath, mask=None, cmap="PiYG"):
+
+def plot_channel_effects(
+    data, hdi_data, info, chan_order, vlim, title, figpath, mask=None, cmap="PiYG"
+):
     f, ax = plt.subplots(1, 3, layout="constrained", figsize=(15, 5))
-    
+
     titles = ["3% HDI", "Mean", "97% HDI"]
     plot_data = [hdi_data[chan_order, 0], data[chan_order], hdi_data[chan_order, 1]]
 
@@ -531,7 +533,7 @@ def plot_channel_effects(data, hdi_data, info, chan_order, vlim, title, figpath,
     vmax = vlim[1]
     vnew = np.max([abs(vmin), vmax])
     vlim2 = (-vnew, vnew)
-    
+
     for i in range(3):
         im, _ = mne.viz.plot_topomap(
             data=plot_data[i],
@@ -542,23 +544,32 @@ def plot_channel_effects(data, hdi_data, info, chan_order, vlim, title, figpath,
             show=False,
             size=15,
             res=800,
-            mask=mask[chan_order] if mask is not None else None,  # Apply the mask if provided
-            mask_params=dict(marker='x', markerfacecolor='blue', markeredgecolor='blue', linewidth=0, markersize=7)
+            mask=(
+                mask[chan_order] if mask is not None else None
+            ),  # Apply the mask if provided
+            mask_params=dict(
+                marker="x",
+                markerfacecolor="blue",
+                markeredgecolor="blue",
+                linewidth=0,
+                markersize=7,
+            ),
         )
         ax[i].set_title(titles[i])
-    
+
     cb = f.colorbar(im, ax=ax.ravel().tolist(), fraction=0.05, pad=0.04)
     cb.ax.set_ylim([vlim[0], vlim[1]])
     f.suptitle(title)
-    
+
     plt.savefig(figpath, dpi=500)
     plt.close(f)
+
 
 # Create mask from ROPE values
 def create_channel_mask(summary, var_name):
     # Get all rows that correspond to the channel effects
     # Use exact match with [] to avoid matching similar variable names
     channel_rows = summary[summary.index.str.startswith(f"{var_name}[")]
-    # Create mask where ROPE > 0.99
-    mask = channel_rows['rope'].values > 0.99
+    # Create mask where ROPE <= 0.01
+    mask = channel_rows["rope"].values <= 0.01
     return mask
