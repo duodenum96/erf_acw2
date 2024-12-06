@@ -13,7 +13,7 @@ import scipy as sp
 from mne.filter import next_fast_len
 import arviz as az
 import matplotlib as mpl
-
+from mpl_toolkits.axes_grid1 import AxesGrid
 
 def calc_acw(ts, fs, nlags=None):
     """
@@ -446,7 +446,7 @@ def rope(idata, varname, rope_range=0.1, hdi_prob=0.94):
         data_in_hdi = np.logical_and(
             data >= hdi[varname].values[0], data <= hdi[varname].values[1]
         )
-        data_in_rope = np.logical_or(
+        data_in_rope = np.logical_and(
             data[data_in_hdi] >= -rope_range, data[data_in_hdi] <= rope_range
         )
         return np.mean(data_in_rope)
@@ -458,17 +458,11 @@ def rope(idata, varname, rope_range=0.1, hdi_prob=0.94):
             data_in_hdi = np.logical_and(
                 data >= hdi[varname].values[i][0], data <= hdi[varname].values[i][1]
             )
-            data_in_rope = np.logical_or(
+            data_in_rope = np.logical_and(
                 data[data_in_hdi] >= -rope_range, data[data_in_hdi] <= rope_range
             )
             rope_result[i] = np.mean(data_in_rope)
         return rope_result
-
-
-import numpy as np
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import AxesGrid
 
 
 def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name="shiftedcmap"):
