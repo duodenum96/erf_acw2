@@ -1,19 +1,16 @@
-# cd /BICNAS2/ycatal/erf_acw/scripts/model
-# nohup julia -t 12 sensitivity_analysis_rest_final.jl > log/gsa_rest_final.log &
-# pid: 3969012
+# cd /BICNAS2/ycatal/erf_acw2/scripts/modeling
+# nohup julia -t 16 SM0_rest_sensitivity_analysis.jl > log/gsa_rest.log &
+# pid: 819458
 using LinearAlgebra
-BLAS.set_num_threads(12)
-
-
+BLAS.set_num_threads(16)
 using DifferentialEquations
 using Plots
 using GlobalSensitivity
 using JLD2
 using QuasiMonteCarlo
-using Missings
 
 include("/BICNAS2/ycatal/erf_acw2/scripts/modeling/src_jansenrit.jl")
-savepath = "/BICNAS2/ycatal/erf_acw2/scripts/modeling/"
+savepath = "/BICNAS2/ycatal/erf_acw2/scripts/modeling/results/sensitivity/"
 
 p, x0, tspan, tsteps = get_default_param("rest", 2)
 
@@ -35,7 +32,7 @@ function sensitivity_parallel(p)
     chunksize::Int64 = Np / chunks
     println("Using ", chunks, " chunk(s) of size ", chunksize)
 
-    acwresults = zeros(Union{Missing, Float64}, 2, Np)
+    acwresults = zeros(2, Np)
     
     for k in 1:chunks
         offset = Int((k-1) * Np / chunks)
@@ -65,8 +62,6 @@ function sensitivity_parallel(p)
         for i in 1:chunksize
             if sol[i].retcode !== ReturnCode.Success
                 println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-                acwresults[1, i + offset] = missing
-                acwresults[2, i + offset] = missing
             else
                 x21 = sol[i][2, :]
                 x31 = sol[i][3, :]
@@ -85,19 +80,10 @@ function sensitivity_parallel(p)
         end
     end
 
-    # Replace missing values with the median of the row
-    acwresults_clean = copy(acwresults)
-    for i in 1:size(acwresults, 1)
-        row = acwresults[i, :]
-        idx_missing = ismissing.(row)
-        row[idx_missing] .= median(skipmissing(row))
-        acwresults_clean[i, :] = row
-    end
-
-    return disallowmissing(acwresults_clean) # convert from Union{Missing, Float64} to Float64
+    return acwresults
 end
 
-N = 20000
+N = 50000
 
 chunks = 5000
 lb = [A_F_range[1], A_L_range[1], A_B_range[1], gamma_1_range[1]]
@@ -110,3 +96,4 @@ m = gsa(sensitivity_parallel, Sobol(nboot=40), A, B; batch=true)
 
 save(joinpath(savepath, "sobol_sensitivity_rest.jld2"), Dict("sensitivityresults" => m))
 println("done")
+

@@ -1,26 +1,25 @@
-# cd /BICNAS2/ycatal/erf_acw/scripts/model
-# nohup julia -t 24 sensitivity_analysis_task_final.jl > log/gsa_task_final.log &
-# pid: 3683793
+# cd /BICNAS2/ycatal/erf_acw2/scripts/modeling
+# nohup julia -t 16 SM1_task_sensitivity_analysis.jl > log/gsa_task.log &
+# pid: 819668
 using DifferentialEquations
 using Plots
 using GlobalSensitivity
 using JLD2
 using QuasiMonteCarlo
 using LinearAlgebra
-using Missing
-BLAS.set_num_threads(24)
+BLAS.set_num_threads(16)
 
-include("/BICNAS2/ycatal/erf_acw/scripts/model/src_jansenrit.jl")
-savepath = "/BICNAS2/ycatal/erf_acw/scripts/model/"
+include("/BICNAS2/ycatal/erf_acw2/scripts/modeling/src_jansenrit.jl")
+savepath = "/BICNAS2/ycatal/erf_acw2/scripts/modeling/results/sensitivity/"
 
 p, x0, tspan, tsteps = get_default_param("task", 2)
 tstops = p.tstops
 c = 1e4
 
 ######## Define ranges for parameters
-A_F_range = [0, 15]
-A_L_range = [0, 15]
-A_B_range = [0, 15]
+A_F_range = [0, 5]
+A_L_range = [0, 5]
+A_B_range = [0, 5]
 gamma_1_range = [40, 70]
 
 p_target_ranges = [A_F_range, A_L_range, A_B_range, gamma_1_range]
@@ -33,7 +32,7 @@ function sensitivity_parallel(p)
     chunksize::Int64 = Np / chunks
     println("Using ", chunks, " chunk(s) of size ", chunksize)
 
-    sensresults = zeros(4, Np) # 1, 2: ACW (roi1, roi2); 3, 4: ERF (roi1, roi2); 5, 6: RTs (roi1, roi2)
+    sensresults = zeros(Union{Missing, Float64}, 2, Np) # 1, 2: ERF (roi1, roi2)
 
     for k in 1:chunks
 
@@ -67,7 +66,6 @@ function sensitivity_parallel(p)
         for i in 1:chunksize
             if sol[i].retcode !== ReturnCode.Success
                 println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-                sensresults[:, i + offset] .= missing
             else
                 x21 = sol[i][2, :]
                 x31 = sol[i][3, :]
@@ -78,8 +76,8 @@ function sensitivity_parallel(p)
                 y1 = x21 .- x31
                 y2 = x22 .- x32
 
-                _, erf_rms1, _, rts1 = calc_erf(y1, tstops, threshold=1.0)
-                _, erf_rms2, _, rts2 = calc_erf(y2, tstops, threshold=0.1)
+                _, erf_rms1, _ = calc_erf(y1, tstops, threshold=1.0)
+                _, erf_rms2, _ = calc_erf(y2, tstops, threshold=0.1)
 
                 sensresults[1, i + offset] = erf_rms1
                 sensresults[2, i + offset] = erf_rms2
@@ -87,15 +85,7 @@ function sensitivity_parallel(p)
         end
     end
 
-    sensresults_clean = copy(sensresults)
-    for i in 1:size(sensresults, 1)
-        row = sensresults[i, :]
-        idx_missing = isnan.(row)
-        row[idx_missing] .= median(skipmissing(row))
-        sensresults_clean[i, :] = row
-    end
-
-    return disallowmissing(sensresults_clean)
+    return sensresults
 end
 
 N = 20000
@@ -108,5 +98,5 @@ A, B = QuasiMonteCarlo.generate_design_matrices(N, lb, ub, sampler)
 
 m = gsa(sensitivity_parallel, Sobol(nboot=40), A, B; batch=true)
 
-save(joinpath(savepath, "sobol_sensitivity_task_final.jld2"), Dict("sensitivityresults" => m))
+save(joinpath(savepath, "sobol_sensitivity_task.jld2"), Dict("sensitivityresults" => m))
 println("done")

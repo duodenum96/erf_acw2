@@ -193,7 +193,12 @@ for i in range(len(Xs)):
 
         # add new axis for time courses and plot time courses
         ax_signals = divider.append_axes("right", size="300%", pad=1.2)
-        title = "Cluster #{0}, {1} sensor".format(i_clu + 1, len(ch_inds))
+        if suptitles[i] == "Encode":
+            title = "Encode Cluster #{0}, {1} sensor".format(i_clu + 1, len(ch_inds))
+        elif suptitles[i] == "Probe":
+            title = "Probe Cluster #{0}, {1} sensors".format(i_clu + 1, len(ch_inds))
+        else:
+            title = "Cluster #{0}, {1} sensor".format(i_clu + 1, len(ch_inds))
         
 
         if len(ch_inds) > 1:
@@ -223,7 +228,10 @@ for i in range(len(Xs)):
 
         # Add new axis for comparing ERFs
         ax_comparison = divider.append_axes("right", size="100%", pad=1.2)
-        title = "Cluster #{0}, {1} sensor".format(i_clu + 1, len(ch_inds))
+        if i_clu in [0, 1, 2, 3]:
+            title = "Encode Cluster #{0}, {1} sensor".format(i_clu + 1, len(ch_inds))
+        else:
+            title = "Probe Cluster #{0}, {1} sensors".format(i_clu + 1, len(ch_inds))
 
         # Average the activity inside the shaded area for each subject
         erf_violins = {comparisons[i][k]: [] for k in range(len(comparisons[i]))}
@@ -272,8 +280,10 @@ for i in range(len(Xs)):
         ax_comparison.set_ylim((0, 140))
 
         
-
-        fig.savefig(pathjoin(figpath, f"{taskname}_{i}_cluster{i_clu}_face_vs_shape.jpg"), dpi=800)
+        if pass_or_fail[-1]:
+            fig.savefig(pathjoin(figpath, f"{taskname}_{i}_cluster{i_clu}_face_vs_shape_X.jpg"), dpi=800)
+        else:
+            fig.savefig(pathjoin(figpath, f"{taskname}_{i}_cluster{i_clu}_face_vs_shape.jpg"), dpi=800)
 
 p_corrs = []
 ts = []

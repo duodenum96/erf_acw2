@@ -1,7 +1,7 @@
 using JLD2
 
-restsens = load("/BICNAS2/ycatal/erf_acw2/scripts/modeling/results/sensitivity/sobol_sensitivity_rest_final.jld2")["sensitivityresults"]
-tasksens = load("/BICNAS2/ycatal/erf_acw2/scripts/modeling/results/sensitivity/sobol_sensitivity_task_final.jld2")["sensitivityresults"]
+restsens = load("/BICNAS2/ycatal/erf_acw2/scripts/modeling/results/sensitivity/sobol_sensitivity_rest.jld2")["sensitivityresults"]
+tasksens = load("/BICNAS2/ycatal/erf_acw2/scripts/modeling/results/sensitivity/sobol_sensitivity_task.jld2")["sensitivityresults"]
 
 restsens.S1
 restsens.ST
