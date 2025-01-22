@@ -1,5 +1,10 @@
 # Code to replicate the analyses in the paper
 
+This repo contains the code to replicate the analyses in the paper 
+"How Intrinsic Neural Timescales Relate To Event-Related Activity – Key Role For Intracolumnar Connections"
+
+Preprint available at https://www.biorxiv.org/content/10.1101/2025.01.10.632350v1
+
 Scripts are located in the folder scripts. 
 Clone this github repo. Create a conda environment. Install this repo with 
 
