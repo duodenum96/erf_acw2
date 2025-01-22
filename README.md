@@ -8,23 +8,22 @@ Clone this github repo. Create a conda environment. Install this repo with
 after cd'ing into the repo. 
 
 Getting the paths right might need a little bit of tinkering. A better way to do this would 
-be to make a config file at the erf_acw2 folder. But I don't have time to refactor all the code
-according to that. If somebody is volunteering, send a pull request. 
+be to make a config file at the erf_acw2 folder. 
 
 ## MODELING
 
 The simulations are done in Julia. Visualization is done in Python. 
 Run scripts with the following order:
 
-### Sensitivity analysis
-scripts/modeling/SM0_rest_sensitivity_analysis.jl
+### Relationships between variables (2-column model)
+scripts/modeling/SM0_jr_relationships.jl
 
-scripts/modeling/SM1_task_sensitivity_analysis.jl
+scripts/modeling/SM1_jr_relationships_task.jl
 
-scripts/modeling/SM2_turn_sensitivity_to_python.jl
+scripts/modeling/SM2_jr_compile_results.jl
 
-### Visualize sensitivity analysis
-scripts/modeling/SM3_visualize_sensitivity.py
+### Visualize relationships
+scripts/modeling/SM3_visualize_relationships.py
 
 ### Plots for correlations / bayesian model
 scripts/modeling/SM4_jansenrit_rest.jl
