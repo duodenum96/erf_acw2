@@ -34,16 +34,19 @@ subj_raw_path = pathjoin(data_root, i_subj, "ses-01", "meg")
 preprocpath = "/BICNAS2/group-northoff/NIMH_healthy_volunteer/preprocessing"
 
 subj_preprocpath = pathjoin(preprocpath, i_subj)
-outputpath = pathjoin(subj_preprocpath, "rest", "rejection_ica")
+outputpath = pathjoin(subj_preprocpath, "haririhammer", "rejection_ica")
 
-data = mne.read_epochs(pathjoin(outputpath, i_subj + "_rest_preprocessed-epo.fif.gz"))
+data = mne.read_epochs(pathjoin(outputpath, i_subj + "_haririhammer_preprocessed-epo.fif.gz"))
 
-mne.bem.make_watershed_bem(  # for T1; for FLASH, use make_flash_bem instead
-    subject=i_subj,
-    subjects_dir=subjects_dir,
-    copy=True,
-    overwrite=True,
-)
+bem_path = f"/BICNAS2/group-northoff/NIMH_source_reconstruction/{i_subj}/bem"
+
+if not os.path.isdir(bem_path):
+    mne.bem.make_watershed_bem(  # for T1; for FLASH, use make_flash_bem instead
+        subject=i_subj,
+        subjects_dir=subjects_dir,
+        copy=True,
+        overwrite=True,
+    )
 
 coreg = Coregistration(data.info, i_subj, subjects_dir)
 
@@ -72,4 +75,4 @@ print(
     f"/ {np.min(dists):.2f} mm / {np.max(dists):.2f} mm"
 )
 
-mne.write_trans(pathjoin(subj_preprocpath, "rest", "alignment-trans.fif"), coreg.trans)
+mne.write_trans(pathjoin(subj_preprocpath, "haririhammer", "alignment-trans.fif"), coreg.trans)
