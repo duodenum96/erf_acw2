@@ -53,7 +53,7 @@ megchans = mne.pick_types(epochs.info, meg="mag", exclude=[])
 epochs.pick(megchans)  # pick meg channels
 
 tic = time()
-ar = autoreject.AutoReject(random_state=666, n_jobs=96, verbose=True)
+ar = autoreject.AutoReject(random_state=666, n_jobs=8, verbose=True)
 ar.fit(epochs)
 toc = time() - tic
 print(f"Autoreject completed, elapsed time: {toc} seconds")
@@ -65,3 +65,5 @@ epochs_ar2.save(
     pathjoin(outputpath, i_subj + "_noise_preprocessed-epo.fif.gz"), fmt="double", overwrite=True
 )
 
+print(f"Epochs saved to {pathjoin(outputpath, i_subj + '_noise_preprocessed-epo.fif.gz')}")
+print(f"Subject {i_subj} done")
