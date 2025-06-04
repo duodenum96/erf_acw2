@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Run freesurfer recon-all
-cd /BICNAS2/ycatal/erf_acw2/scripts/preprocessing
+cd /BICNAS2/ycatal/erf_acw2/scripts/preprocessing/source_reconstruction
 
 subjlist_file="/BICNAS2/ycatal/erf_acw2/erf_acw2/commonsubj.txt"
 subjlist=($(cat $subjlist_file))
