@@ -76,3 +76,4 @@ print(
 )
 
 mne.write_trans(pathjoin(subj_preprocpath, "haririhammer", "alignment-trans.fif"), coreg.trans)
+print(f"Alignment saved to {pathjoin(subj_preprocpath, 'haririhammer', 'alignment-trans.fif')}")
