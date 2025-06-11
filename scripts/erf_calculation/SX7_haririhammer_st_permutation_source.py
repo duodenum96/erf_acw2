@@ -92,8 +92,8 @@ for i, effects in enumerate(all_effects):
         adjacency=adj,
         stat_fun=stat_fun,
         threshold=f_thresh,
-        n_permutations=200,
-        n_jobs=50,
+        n_permutations=1000,
+        n_jobs=8,
     )
 
     savename = pathjoin(output_dir, f"{taskname}_erp_permutationtest_st_{effect_names[i]}.pkl")
