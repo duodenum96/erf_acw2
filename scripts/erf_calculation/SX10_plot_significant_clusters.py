@@ -173,7 +173,7 @@ fname = pathjoin(output_dir, "grand_average.pkl")
 grand_averages = pklload(fname)["grand_averages"]
 grand_averages_std = pklload(fname)["grand_averages_std"]
 
-times = grand_averages["times"]
+times = grand_averages["encode_face_happy"].times
 
 # Load significant clusters
 fname = pathjoin(output_dir, f"{taskname}_erp_permutationtest_st_all_cluster_vis.pkl")
@@ -274,21 +274,14 @@ elif i_factor == "factor_encprob":
     i_color = [colors_list[2], colors_list[3], colors_list[4]]
 
 for i, i_comparison in enumerate(comparisons):
-    for j, j_trial in enumerate(i_comparison):
-        ts_data = comparisons_data_ts[i][j]
-        std_data = comparisons_data_std_ts[i][j]
-        ax[1].plot(ts_data, color=i_color[i][j], label=j_trial)
-        ax[1].fill_between(
-            times,
-            ts_data + std_data,
-            ts_data - std_data,
-            color=i_color[i][j],
-            alpha=0.2,
-        )
+    f, ax = plt.subplots(1, 3, figsize=(19, 4))
+    plot_source_time_series(
+        comparisons_data_ts[i],
+        comparisons_data_std_ts[i],
+        times,
+        i_color[i],
+        i_comparison,
+        ax=ax[1],
+    )
 
-ax[1].legend()
-ax[1].set_title("Cluster time series")
-ax[1].set_xlabel("Time (ms)")
-ax[1].set_ylabel("ERF (µV)")
-
-plt.savefig("anan.jpg")
+    plt.savefig("anan.jpg")
