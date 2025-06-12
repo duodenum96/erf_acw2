@@ -61,3 +61,5 @@ for effect_name in effect_names:
         pathjoin(output_dir, f"{taskname}_erp_permutationtest_st_{effect_name}_all_cluster_vis.stc"), overwrite=True
     )
     
+pklsave(pathjoin(output_dir, f"{taskname}_erp_permutationtest_st_all_cluster_vis.pkl"), 
+        {"cluster_results": cluster_results, "clus": clus})

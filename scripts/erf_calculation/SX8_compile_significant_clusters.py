@@ -105,59 +105,6 @@ def extract_cluster_data(cluster_results, effect_name, cluster_idx):
         'cluster_p': cluster_results[effect_name]["cluster_p"][cluster_idx]
     }
 
-def compile_visualization_package(taskname, output_compile_dir):
-    """Main function to compile all necessary data for offline visualization"""
-    
-    # Load all necessary data
-    source_results_dir = "/BICNAS2/ycatal/erf_acw2/results/erf_source"
-    effect_names = ["factor_encprob", "factor_emo"]
-    subjs_common = get_commonsubj()
-    
-    # Load cluster results
-    cluster_results = load_cluster_results(taskname, effect_names, source_results_dir)
-    
-    # Find significant clusters
-    significant_info = find_significant_clusters(cluster_results, p_thresh=0.01)
-    
-    # Load behavioral data (if needed for validation/comparison)
-    tasks, tasknames = load_behavioral_data(taskname, subjs_common)
-    
-    # Prepare comparison configurations
-    comparison_configs = prepare_comparison_configs()
-    
-    # Create summary of significant clusters
-    cluster_summary = {}
-    for effect_name in effect_names:
-        cluster_summary[effect_name] = []
-        for cluster_idx in significant_info[effect_name]['cluster_indices']:
-            cluster_data = extract_cluster_data(cluster_results, effect_name, cluster_idx)
-            cluster_summary[effect_name].append({
-                'cluster_idx': cluster_idx,
-                'cluster_p': cluster_data['cluster_p'],
-                'spatial_extent': cluster_data['spatial_extent'],
-                'time_extent': len(cluster_data['time_inds'])
-            })
-    
-    # Package everything for download
-    visualization_package = {
-        'cluster_results': cluster_results,
-        'significant_info': significant_info,
-        'cluster_summary': cluster_summary,
-        'comparison_configs': comparison_configs,
-        'tasknames': tasknames,
-        'subjs_common': subjs_common,
-        'tasks': tasks  # Include if needed for comparison
-    }
-    
-    # Save the compiled package
-    output_file = pathjoin(output_compile_dir, f"{taskname}_visualization_package.pkl")
-    pklsave(output_file, visualization_package)
-    
-    # Create a summary report
-    create_summary_report(cluster_summary, output_compile_dir, taskname)
-    
-    return visualization_package
-
 def create_summary_report(cluster_summary, output_dir, taskname):
     """Create a text summary of significant clusters"""
     report_file = pathjoin(output_dir, f"{taskname}_cluster_summary.txt")
@@ -178,17 +125,55 @@ def create_summary_report(cluster_summary, output_dir, taskname):
             
             f.write("\n")
 
-# Main execution
-taskname = "haririhammer"
 output_compile_dir = "/BICNAS2/ycatal/erf_acw2/results/visualization_packages"
 
-# Create output directory if it doesn't exist
-import os
-if not os.path.exists(output_compile_dir):
-    os.makedirs(output_compile_dir)
+# Load all necessary data
+source_results_dir = "/BICNAS2/ycatal/erf_acw2/results/erf_source"
+effect_names = ["factor_encprob", "factor_emo"]
+subjs_common = get_commonsubj()
 
-# Compile the visualization package
-viz_package = compile_visualization_package(taskname, output_compile_dir)
+# Load cluster results
+cluster_results = load_cluster_results(taskname, effect_names, source_results_dir)
+
+# Find significant clusters
+significant_info = find_significant_clusters(cluster_results, p_thresh=0.01)
+
+# Load behavioral data (if needed for validation/comparison)
+tasks, tasknames = load_behavioral_data(taskname, subjs_common)
+
+# Prepare comparison configurations
+comparison_configs = prepare_comparison_configs()
+
+# Create summary of significant clusters
+cluster_summary = {}
+for effect_name in effect_names:
+    cluster_summary[effect_name] = []
+    for cluster_idx in significant_info[effect_name]['cluster_indices']:
+        cluster_data = extract_cluster_data(cluster_results, effect_name, cluster_idx)
+        cluster_summary[effect_name].append({
+            'cluster_idx': cluster_idx,
+            'cluster_p': cluster_data['cluster_p'],
+            'spatial_extent': cluster_data['spatial_extent'],
+            'time_extent': len(cluster_data['time_inds'])
+        })
+
+# Package everything for download
+visualization_package = {
+    'cluster_results': cluster_results,
+    'significant_info': significant_info,
+    'cluster_summary': cluster_summary,
+    'comparison_configs': comparison_configs,
+    'tasknames': tasknames,
+    'subjs_common': subjs_common,
+    'tasks': tasks  # Include if needed for comparison
+}
+
+# Save the compiled package
+output_file = pathjoin(output_compile_dir, f"{taskname}_visualization_package.pkl")
+pklsave(output_file, visualization_package)
+
+# Create a summary report
+create_summary_report(cluster_summary, output_compile_dir, taskname)
 
 print(f"Files saved to: {output_compile_dir}")
 

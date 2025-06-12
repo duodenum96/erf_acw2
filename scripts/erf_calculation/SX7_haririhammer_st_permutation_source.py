@@ -92,7 +92,7 @@ for i, effects in enumerate(all_effects):
         adjacency=adj,
         stat_fun=stat_fun,
         threshold=f_thresh,
-        n_permutations=1000,
+        n_permutations=5000,
         n_jobs=8,
     )
 

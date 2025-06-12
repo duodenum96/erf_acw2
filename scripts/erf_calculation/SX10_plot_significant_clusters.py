@@ -6,6 +6,7 @@ from erf_acw2.src import pklload
 import matplotlib.pyplot as plt
 import matplotlib
 
+
 def get_cluster_time_series(cluster_data, i_vertices):
     """
     Average over vertices
@@ -13,6 +14,72 @@ def get_cluster_time_series(cluster_data, i_vertices):
     i_data = np.mean(cluster_data.data[np.unique(i_vertices), :], axis=0)
     return i_data
 
+
+def plot_source_time_series(
+    time_series_data,
+    std_data,
+    times,
+    colors,
+    labels,
+    ax=None,
+    title="",
+    show_legend=True,
+    ci=True,
+):
+    """
+    Plot time series data similar to plot_compare_evokeds but for source space data
+
+    Parameters:
+    -----------
+    time_series_data : list of arrays
+        List of time series data for each condition
+    std_data : list of arrays
+        List of standard error/deviation data for each condition
+    times : array
+        Time points
+    colors : list
+        Colors for each condition
+    labels : list
+        Labels for each condition
+    ax : matplotlib axis
+        Axis to plot on
+    title : str
+        Plot title
+    show_legend : bool
+        Whether to show legend
+    ci : bool
+        Whether to show confidence intervals
+    """
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(8, 4))
+
+    for i, (ts_data, std_data_i, color, label) in enumerate(
+        zip(time_series_data, std_data, colors, labels)
+    ):
+        # Plot main time series
+        ax.plot(times, ts_data, color=color, label=label, linewidth=2)
+
+        # Plot confidence interval if requested
+        if ci and std_data_i is not None:
+            ax.fill_between(
+                times,
+                ts_data - std_data_i,
+                ts_data + std_data_i,
+                color=color,
+                alpha=0.2,
+            )
+
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Source Activity")
+    ax.set_title(title)
+    ax.grid(True, alpha=0.3)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    if show_legend:
+        ax.legend(loc="best")
+
+    return ax
 
 
 # Colors:
@@ -89,7 +156,7 @@ tests = [
 ]
 
 # Xs = [
-#     [tasks["encode_face_happy"], tasks["encode_face_sad"], tasks["encode_shape"]], 
+#     [tasks["encode_face_happy"], tasks["encode_face_sad"], tasks["encode_shape"]],
 #     [tasks["probe_face_happy"], tasks["probe_face_sad"], tasks["probe_shape"]],
 #     [tasks["encode_face_happy"], tasks["probe_face_happy"]],
 #     [tasks["encode_face_sad"], tasks["probe_face_sad"]],
@@ -105,6 +172,8 @@ output_dir = pathjoin(source_results_dir, taskname)
 fname = pathjoin(output_dir, "grand_average.pkl")
 grand_averages = pklload(fname)["grand_averages"]
 grand_averages_std = pklload(fname)["grand_averages_std"]
+
+times = grand_averages["times"]
 
 # Load significant clusters
 fname = pathjoin(output_dir, f"{taskname}_erp_permutationtest_st_all_cluster_vis.pkl")
@@ -140,12 +209,30 @@ if i_factor == "factor_emo":
         ["probe_face_happy", "probe_face_sad", "probe_shape"],
     ]
     comparisons_data_ts = [
-        [get_cluster_time_series(grand_averages["encode_face_happy"], i_vertices), get_cluster_time_series(grand_averages["encode_face_sad"], i_vertices), get_cluster_time_series(grand_averages["encode_shape"], i_vertices)],
-        [get_cluster_time_series(grand_averages["probe_face_happy"], i_vertices), get_cluster_time_series(grand_averages["probe_face_sad"], i_vertices), get_cluster_time_series(grand_averages["probe_shape"], i_vertices)],
+        [
+            get_cluster_time_series(grand_averages["encode_face_happy"], i_vertices),
+            get_cluster_time_series(grand_averages["encode_face_sad"], i_vertices),
+            get_cluster_time_series(grand_averages["encode_shape"], i_vertices),
+        ],
+        [
+            get_cluster_time_series(grand_averages["probe_face_happy"], i_vertices),
+            get_cluster_time_series(grand_averages["probe_face_sad"], i_vertices),
+            get_cluster_time_series(grand_averages["probe_shape"], i_vertices),
+        ],
     ]
     comparisons_data_std_ts = [
-        [get_cluster_time_series(grand_averages_std["encode_face_happy"], i_vertices), get_cluster_time_series(grand_averages_std["encode_face_sad"], i_vertices), get_cluster_time_series(grand_averages_std["encode_shape"], i_vertices)],
-        [get_cluster_time_series(grand_averages_std["probe_face_happy"], i_vertices), get_cluster_time_series(grand_averages_std["probe_face_sad"], i_vertices), get_cluster_time_series(grand_averages_std["probe_shape"], i_vertices)],
+        [
+            get_cluster_time_series(
+                grand_averages_std["encode_face_happy"], i_vertices
+            ),
+            get_cluster_time_series(grand_averages_std["encode_face_sad"], i_vertices),
+            get_cluster_time_series(grand_averages_std["encode_shape"], i_vertices),
+        ],
+        [
+            get_cluster_time_series(grand_averages_std["probe_face_happy"], i_vertices),
+            get_cluster_time_series(grand_averages_std["probe_face_sad"], i_vertices),
+            get_cluster_time_series(grand_averages_std["probe_shape"], i_vertices),
+        ],
     ]
     i_color = [colors_list[0], colors_list[1]]
 elif i_factor == "factor_encprob":
@@ -155,21 +242,49 @@ elif i_factor == "factor_encprob":
         ["encode_shape", "probe_shape"],
     ]
     comparisons_data_ts = [
-        [get_cluster_time_series(grand_averages["encode_face_happy"], i_vertices), get_cluster_time_series(grand_averages["probe_face_happy"], i_vertices)],
-        [get_cluster_time_series(grand_averages["encode_face_sad"], i_vertices), get_cluster_time_series(grand_averages["probe_face_sad"], i_vertices)],
-        [get_cluster_time_series(grand_averages["encode_shape"], i_vertices), get_cluster_time_series(grand_averages["probe_shape"], i_vertices)],
+        [
+            get_cluster_time_series(grand_averages["encode_face_happy"], i_vertices),
+            get_cluster_time_series(grand_averages["probe_face_happy"], i_vertices),
+        ],
+        [
+            get_cluster_time_series(grand_averages["encode_face_sad"], i_vertices),
+            get_cluster_time_series(grand_averages["probe_face_sad"], i_vertices),
+        ],
+        [
+            get_cluster_time_series(grand_averages["encode_shape"], i_vertices),
+            get_cluster_time_series(grand_averages["probe_shape"], i_vertices),
+        ],
     ]
     comparisons_data_std_ts = [
-        [get_cluster_time_series(grand_averages_std["encode_face_happy"], i_vertices), get_cluster_time_series(grand_averages_std["probe_face_happy"], i_vertices)],
-        [get_cluster_time_series(grand_averages_std["encode_face_sad"], i_vertices), get_cluster_time_series(grand_averages_std["probe_face_sad"], i_vertices)],
-        [get_cluster_time_series(grand_averages_std["encode_shape"], i_vertices), get_cluster_time_series(grand_averages_std["probe_shape"], i_vertices)],
+        [
+            get_cluster_time_series(
+                grand_averages_std["encode_face_happy"], i_vertices
+            ),
+            get_cluster_time_series(grand_averages_std["probe_face_happy"], i_vertices),
+        ],
+        [
+            get_cluster_time_series(grand_averages_std["encode_face_sad"], i_vertices),
+            get_cluster_time_series(grand_averages_std["probe_face_sad"], i_vertices),
+        ],
+        [
+            get_cluster_time_series(grand_averages_std["encode_shape"], i_vertices),
+            get_cluster_time_series(grand_averages_std["probe_shape"], i_vertices),
+        ],
     ]
     i_color = [colors_list[2], colors_list[3], colors_list[4]]
 
 for i, i_comparison in enumerate(comparisons):
     for j, j_trial in enumerate(i_comparison):
-        ax[1].plot(comparisons_data_ts[i][j], color=i_color[i][j], label=j_trial)
-        ax[1].plot(comparisons_data_std_ts[i][j], color=i_color[i][j], linestyle="--")
+        ts_data = comparisons_data_ts[i][j]
+        std_data = comparisons_data_std_ts[i][j]
+        ax[1].plot(ts_data, color=i_color[i][j], label=j_trial)
+        ax[1].fill_between(
+            times,
+            ts_data + std_data,
+            ts_data - std_data,
+            color=i_color[i][j],
+            alpha=0.2,
+        )
 
 ax[1].legend()
 ax[1].set_title("Cluster time series")
