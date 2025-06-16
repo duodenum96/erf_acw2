@@ -455,8 +455,13 @@ for i_factor in factors:
                     ha='center', va='center', transform=ax[0].transAxes, fontsize=12)
             ax[0].set_xticks([])
             ax[0].set_yticks([])
+
+            if len(multcomp) == 1:
+                p_values = multcomp["p-unc"].values
+            else:
+                p_values = multcomp["p-corr"].values
             
-            if np.any(multcomp["p-corr"].values < 0.05):
+            if np.any(p_values < 0.05):
                 data_to_save = {
                     "cluster_idx": cluster_idx,
                     "i_factor": i_factor,
@@ -471,4 +476,12 @@ for i_factor in factors:
                 plt.savefig(os.path.join(results_dir, f"{taskname}_cluster_{cluster_idx}_{i_factor}_{i_comparison[0]}X{i_comparison[1]}.jpg"), dpi=300)
 
 
-pklsave(os.path.join(results_dir, f"{taskname}_significant_clusters_to_save.pkl"), significant_clusters_to_save)
+vertices_in_all_clusters = np.unique(np.concatenate([significant_clusters_to_save[i]["i_vertices"] for i in range(len(significant_clusters_to_save))]))
+
+pklsave(
+    os.path.join(results_dir, f"{taskname}_significant_clusters_to_save.pkl"),
+    {
+        "significant_clusters": significant_clusters_to_save,
+        "vertices_in_all_clusters": vertices_in_all_clusters,
+    },
+)
