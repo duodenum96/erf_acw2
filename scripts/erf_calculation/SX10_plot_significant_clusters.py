@@ -2,7 +2,7 @@ import mne
 import numpy as np
 import os
 from os.path import join as pathjoin
-from erf_acw2.src import pklload
+from erf_acw2.src import pklload, pklsave
 import matplotlib.pyplot as plt
 import matplotlib
 import pingouin as pg
@@ -331,130 +331,144 @@ src = mne.read_source_spaces(fname_fsaverage_src)
 fsave_vertices = [s["vertno"] for s in src]
 
 factors = list(cluster_results.keys())
+significant_clusters_to_save = []
 
-# Example code to plot single cluster
+for i_factor in factors:
+    significant_clusters = np.where(cluster_results[i_factor]["cluster_p"] < p_thresh)[0]
 
-i_factor = factors[0]
-significant_clusters = np.where(cluster_results[i_factor]["cluster_p"] < p_thresh)[0]
+    for cluster_idx in range(len(significant_clusters)):
+        i_cluster = significant_clusters[cluster_idx]
 
-cluster_idx = 0
-i_cluster = significant_clusters[cluster_idx]
+        i_cluster = cluster_results[i_factor]["clusters"][i_cluster]
+        i_times = i_cluster[0]
+        i_vertices = i_cluster[1]
 
-i_cluster = cluster_results[i_factor]["clusters"][i_cluster]
-i_times = i_cluster[0]
-i_vertices = i_cluster[1]
+        # See: https://github.com/mne-tools/mne-python/issues/962
+        if i_times[0] == 0:
+            continue
 
-if i_factor == "factor_emo":
-    # Compare the the elements in each list
-    comparisons = [
-        ["encode_face_happy", "encode_face_sad", "encode_shape"],
-        ["probe_face_happy", "probe_face_sad", "probe_shape"],
-    ]
-    comparisons_data_ts = [
-        [
-            get_cluster_time_series(grand_averages["encode_face_happy"], i_vertices),
-            get_cluster_time_series(grand_averages["encode_face_sad"], i_vertices),
-            get_cluster_time_series(grand_averages["encode_shape"], i_vertices),
-        ],
-        [
-            get_cluster_time_series(grand_averages["probe_face_happy"], i_vertices),
-            get_cluster_time_series(grand_averages["probe_face_sad"], i_vertices),
-            get_cluster_time_series(grand_averages["probe_shape"], i_vertices),
-        ],
-    ]
-    comparisons_data_ci_ts = [
-        [
-            get_cluster_time_series_ci(
-                grand_averages_ci["encode_face_happy"], i_vertices
-            ),
-            get_cluster_time_series_ci(grand_averages_ci["encode_face_sad"], i_vertices),
-            get_cluster_time_series_ci(grand_averages_ci["encode_shape"], i_vertices),
-        ],
-        [
-            get_cluster_time_series(grand_averages_ci["probe_face_happy"], i_vertices),
-            get_cluster_time_series(grand_averages_ci["probe_face_sad"], i_vertices),
-            get_cluster_time_series(grand_averages_ci["probe_shape"], i_vertices),
-        ],
-    ]
-    i_color = [colors_list[0], colors_list[1]]
-    i_comparisons_short = [["efh", "efs", "es"], ["pfh", "pfs", "ps"]]
-elif i_factor == "factor_encprob":
-    comparisons = [
-        ["encode_face_happy", "probe_face_happy"],
-        ["encode_face_sad", "probe_face_sad"],
-        ["encode_shape", "probe_shape"],
-    ]
-    comparisons_data_ts = [
-        [
-            get_cluster_time_series(grand_averages["encode_face_happy"], i_vertices),
-            get_cluster_time_series(grand_averages["probe_face_happy"], i_vertices),
-        ],
-        [
-            get_cluster_time_series(grand_averages["encode_face_sad"], i_vertices),
-            get_cluster_time_series(grand_averages["probe_face_sad"], i_vertices),
-        ],
-        [
-            get_cluster_time_series(grand_averages["encode_shape"], i_vertices),
-            get_cluster_time_series(grand_averages["probe_shape"], i_vertices),
-        ],
-    ]
+        if i_factor == "factor_emo":
+            # Compare the the elements in each list
+            comparisons = [
+                ["encode_face_happy", "encode_face_sad", "encode_shape"],
+                ["probe_face_happy", "probe_face_sad", "probe_shape"],
+            ]
+            comparisons_data_ts = [
+                [
+                    get_cluster_time_series(grand_averages["encode_face_happy"], i_vertices),
+                    get_cluster_time_series(grand_averages["encode_face_sad"], i_vertices),
+                    get_cluster_time_series(grand_averages["encode_shape"], i_vertices),
+                ],
+                [
+                    get_cluster_time_series(grand_averages["probe_face_happy"], i_vertices),
+                    get_cluster_time_series(grand_averages["probe_face_sad"], i_vertices),
+                    get_cluster_time_series(grand_averages["probe_shape"], i_vertices),
+                ],
+            ]
+            comparisons_data_ci_ts = [
+                [
+                    get_cluster_time_series_ci(
+                        grand_averages_ci["encode_face_happy"], i_vertices
+                    ),
+                    get_cluster_time_series_ci(grand_averages_ci["encode_face_sad"], i_vertices),
+                    get_cluster_time_series_ci(grand_averages_ci["encode_shape"], i_vertices),
+                ],
+                [
+                    get_cluster_time_series_ci(grand_averages_ci["probe_face_happy"], i_vertices),
+                    get_cluster_time_series_ci(grand_averages_ci["probe_face_sad"], i_vertices),
+                    get_cluster_time_series_ci(grand_averages_ci["probe_shape"], i_vertices),
+                ],
+            ]
+            i_color = [colors_list[0], colors_list[1]]
+            i_comparisons_short = [["efh", "efs", "es"], ["pfh", "pfs", "ps"]]
+        elif i_factor == "factor_encprob":
+            comparisons = [
+                ["encode_face_happy", "probe_face_happy"],
+                ["encode_face_sad", "probe_face_sad"],
+                ["encode_shape", "probe_shape"],
+            ]
+            comparisons_data_ts = [
+                [
+                    get_cluster_time_series(grand_averages["encode_face_happy"], i_vertices),
+                    get_cluster_time_series(grand_averages["probe_face_happy"], i_vertices),
+                ],
+                [
+                    get_cluster_time_series(grand_averages["encode_face_sad"], i_vertices),
+                    get_cluster_time_series(grand_averages["probe_face_sad"], i_vertices),
+                ],
+                [
+                    get_cluster_time_series(grand_averages["encode_shape"], i_vertices),
+                    get_cluster_time_series(grand_averages["probe_shape"], i_vertices),
+                ],
+            ]
 
-    comparisons_data_ci_ts = [
-        [
-            get_cluster_time_series_ci(
-                grand_averages_ci["encode_face_happy"], i_vertices
-            ),
-            get_cluster_time_series_ci(grand_averages_ci["probe_face_happy"], i_vertices),
-        ],
-        [
-            get_cluster_time_series_ci(grand_averages_ci["encode_face_sad"], i_vertices),
-            get_cluster_time_series_ci(grand_averages_ci["probe_face_sad"], i_vertices),
-        ],
-        [
-            get_cluster_time_series_ci(grand_averages_ci["encode_shape"], i_vertices),
-            get_cluster_time_series_ci(grand_averages_ci["probe_shape"], i_vertices),
-        ],
-    ]
-    i_color = [colors_list[2], colors_list[3], colors_list[4]]
-    i_comparisons_short = [["efh", "pfh"], ["efs", "pfs"], ["es", "ps"]]
+            comparisons_data_ci_ts = [
+                [
+                    get_cluster_time_series_ci(
+                        grand_averages_ci["encode_face_happy"], i_vertices
+                    ),
+                    get_cluster_time_series_ci(grand_averages_ci["probe_face_happy"], i_vertices),
+                ],
+                [
+                    get_cluster_time_series_ci(grand_averages_ci["encode_face_sad"], i_vertices),
+                    get_cluster_time_series_ci(grand_averages_ci["probe_face_sad"], i_vertices),
+                ],
+                [
+                    get_cluster_time_series_ci(grand_averages_ci["encode_shape"], i_vertices),
+                    get_cluster_time_series_ci(grand_averages_ci["probe_shape"], i_vertices),
+                ],
+            ]
+            i_color = [colors_list[2], colors_list[3], colors_list[4]]
+            i_comparisons_short = [["efh", "pfh"], ["efs", "pfs"], ["es", "ps"]]
+
+        for i, i_comparison in enumerate(comparisons):
+            
+            f, ax = plt.subplots(1, 3, figsize=(19, 4))
+            
+            # Get significant times if they exist
+            sig_times = times[np.unique(i_times)] if len(i_times) > 0 else None
+            
+            # Plot time series
+            plot_source_time_series(
+                comparisons_data_ts[i],
+                comparisons_data_ci_ts[i],
+                times,
+                i_color[i],
+                i_comparison,
+                ax=ax[1],
+                sig_times=sig_times,
+            )
+            
+            # Extract data for violin plot
+            violin_data = extract_cluster_data_for_violin(all_ts_data, i_times, i_vertices, i_comparison)
+            
+            # Create violin plot
+            multcomp = plot_source_violin_comparison(
+                violin_data, 
+                i_color[i], 
+                i_comparisons_short[i],
+                ax[2],
+            )
+            
+            # You can also add a brain plot or other visualization in ax[0] if needed
+            ax[0].text(0.5, 0.5, f"Cluster {cluster_idx}\n{i_factor}\n{len(np.unique(i_vertices))} vertices\n{len(np.unique(i_times))} time points", 
+                    ha='center', va='center', transform=ax[0].transAxes, fontsize=12)
+            ax[0].set_xticks([])
+            ax[0].set_yticks([])
+            
+            if np.any(multcomp["p-corr"].values < 0.05):
+                data_to_save = {
+                    "cluster_idx": cluster_idx,
+                    "i_factor": i_factor,
+                    "i_comparison": i_comparison,
+                    "multcomp": multcomp,
+                    "violin_data": violin_data,
+                    "i_times": i_times, 
+                    "i_vertices": i_vertices,
+                }
+                significant_clusters_to_save.append(data_to_save)
+                plt.tight_layout()
+                plt.savefig(os.path.join(results_dir, f"{taskname}_cluster_{cluster_idx}_{i_factor}_{i_comparison[0]}X{i_comparison[1]}.jpg"), dpi=300)
 
 
-for i, i_comparison in enumerate(comparisons):
-    
-    f, ax = plt.subplots(1, 3, figsize=(19, 4))
-    
-    # Get significant times if they exist
-    sig_times = times[np.unique(i_times)] if len(i_times) > 0 else None
-    
-    # Plot time series
-    plot_source_time_series(
-        comparisons_data_ts[i],
-        comparisons_data_ci_ts[i],
-        times,
-        i_color[i],
-        i_comparison,
-        ax=ax[1],
-        sig_times=sig_times,
-        title=f"Cluster Time Series"
-    )
-    
-    # Extract data for violin plot
-    violin_data = extract_cluster_data_for_violin(all_ts_data, i_times, i_vertices, i_comparison)
-    
-    # Create violin plot
-    multcomp = plot_source_violin_comparison(
-        violin_data, 
-        i_color[i], 
-        i_comparisons_short[i],
-        ax[2],
-        title=f"Cluster Activity Comparison"
-    )
-    
-    # You can also add a brain plot or other visualization in ax[0] if needed
-    ax[0].text(0.5, 0.5, f"Cluster {cluster_idx}\n{i_factor}\n{len(np.unique(i_vertices))} vertices\n{len(np.unique(i_times))} time points", 
-               ha='center', va='center', transform=ax[0].transAxes, fontsize=12)
-    ax[0].set_xticks([])
-    ax[0].set_yticks([])
-    
-    plt.tight_layout()
-    plt.savefig(os.path.join(results_dir, f"{taskname}_cluster_{cluster_idx}_{i_factor}_{i_comparison[0]}X{i_comparison[1]}.jpg"), dpi=300)
+pklsave(os.path.join(results_dir, f"{taskname}_significant_clusters_to_save.pkl"), significant_clusters_to_save)
