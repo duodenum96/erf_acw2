@@ -3,12 +3,14 @@ import numpy as np
 import os
 from os.path import join as pathjoin
 import sys
+from scipy import signal
 from erf_acw2.src import get_commonsubj
+
 os.chdir("/BICNAS2/ycatal/erf_acw2/scripts/preprocessing")
 from scripts.preprocessing.rest_badICs import exclude, badics
 from scipy import signal
 import matplotlib.pyplot as plt
-from erf_acw2.src import pklsave
+from erf_acw2.src import pklload, pklsave, pick_megchans, re_epoch
 
 subjects_dir = "/BICNAS2/group-northoff/NIMH_source_reconstruction"
 
@@ -29,21 +31,24 @@ subj_preprocpath = pathjoin(preprocpath, i_subj)
 outputpath = pathjoin(subj_preprocpath, "rest", "rejection_ica")
 
 data = mne.read_epochs(pathjoin(outputpath, i_subj + "_rest_preprocessed-epo.fif.gz"))
+epochs_meg = pick_megchans(data)
+epochs_meg = re_epoch(epochs_meg, 10.0, conservative=True)
+
 
 # Load the required ingredients: covariance matrix, forward solution, source space
 fwd = mne.read_forward_solution(pathjoin(subj_preprocpath, "rest", "forward-fwd.fif"))
 src = fwd["src"]
 
 # Load noise covariance
-noise_cov = mne.read_cov(pathjoin(subj_preprocpath, "noise", "rejection_ica", f"{i_subj}_noise_cov.fif"))
-
-# Compute inverse solution
-inverse_operator = mne.minimum_norm.make_inverse_operator(
-    data.info, fwd, noise_cov
+noise_cov = mne.read_cov(
+    pathjoin(subj_preprocpath, "noise", "rejection_ica", f"{i_subj}_noise_cov.fif")
 )
 
+# Compute inverse solution
+inverse_operator = mne.minimum_norm.make_inverse_operator(data.info, fwd, noise_cov)
+
 mne.minimum_norm.write_inverse_operator(
-    pathjoin(subj_preprocpath, "rest", "inverse-inv.fif"), inverse_operator
+    pathjoin(subj_preprocpath, "rest", "inverse-inv.fif"), inverse_operator, overwrite=True
 )
 
 
@@ -52,23 +57,46 @@ snr = 1.0
 lambda2 = 1.0 / snr**2
 
 method = "dSPM"  # could choose MNE, sLORETA, or eLORETA instead
-stc = mne.minimum_norm.apply_inverse_epochs(
-    data,
+stcs = mne.minimum_norm.apply_inverse_epochs(
+    epochs_meg,
     inverse_operator,
     lambda2,
     method=method,
     verbose=True,
 )
 
-pklsave(pathjoin(subj_preprocpath, "rest", "stc.pkl"), stc)
+# stc is way too big. Instead of saving stc, save ACFs and PSDs after alignment
+# pklsave(pathjoin(subj_preprocpath, "rest", "stc.pkl"), stc)
 
-# freqs, psd = signal.periodogram(all_data, fs=data.info["sfreq"])
+################## Alignment ##################
+fsaverage_bem_path = "/BICNAS2/group-northoff/NIMH_source_reconstruction/fsaverage_bem"
+fname_fsaverage_src = pathjoin(fsaverage_bem_path, "fsaverage-ico-4-src.fif")
 
-# psd_mean = psd.mean(axis=0) # shape: (n_sources, n_times)
-# f, ax = plt.subplots()
-# ax.loglog(freqs, psd_mean)
-# ax.set_xlabel("Frequency (Hz)")
-# ax.set_ylabel("PSD (V^2/Hz)")
-# ax.set_title("PSD of the source estimate")
-# f.savefig(pathjoin(subj_preprocpath, "rest", "source_psd.png"))
+fsaverage_src_path = pathjoin(fsaverage_bem_path, "fsaverage-ico-4-src.fif")
+if not os.path.exists(fsaverage_src_path):
+    src = mne.setup_source_space("fsaverage", spacing="ico4", subjects_dir=subjects_dir)
+    mne.write_source_spaces(fsaverage_src_path, src, overwrite=True)
 
+src_to = mne.read_source_spaces(fname_fsaverage_src)
+
+morphs = []
+for stc in stcs:
+    morph = mne.compute_source_morph(
+        stc,
+        subject_from=i_subj,
+        subject_to="fsaverage",
+        src_to=src_to,
+        subjects_dir=subjects_dir,
+    )
+    morphs.append(morph)
+
+stcs_fsaverage = []
+for morph, stc in zip(morphs, stcs):
+    stcs_fsaverage.append(morph.apply(stc))
+
+catenated_data = np.array([i.data for i in stcs_fsaverage])
+
+freqs, psds = signal.periodogram(catenated_data, fs=epochs_meg.info["sfreq"], window="hamming", axis=2)
+
+pklsave(pathjoin(subj_preprocpath, "rest", "source_psds.pkl"), {"psds": psds, "freqs": freqs})
+print(f"Saved source_psds.pkl for {i_subj}")
