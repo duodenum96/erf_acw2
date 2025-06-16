@@ -62,6 +62,8 @@ for i, i_subj in enumerate(subjs_common):
 
     print(f"{i+1} / {nsubj}")
 
+pklsave(pathjoin(output_dir, f"{taskname}_stc.pkl"), tasks)
+
 X = [tasks[i] for i in tasknames]
 factor_levels = [2, 3]
 
