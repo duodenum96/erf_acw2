@@ -6,12 +6,19 @@ from erf_acw2.src import pklload
 import matplotlib.pyplot as plt
 import matplotlib
 
+results_dir = "/BICNAS2/ycatal/erf_acw2/results/erf_source/permutation_test"
+if not os.path.exists(results_dir):
+    os.makedirs(results_dir)
 
 def get_cluster_time_series(cluster_data, i_vertices):
     """
     Average over vertices
     """
     i_data = np.mean(cluster_data.data[np.unique(i_vertices), :], axis=0)
+    return i_data
+
+def get_cluster_time_series_ci(cluster_data, i_vertices):
+    i_data = np.mean(cluster_data[:, :, np.unique(i_vertices)], axis=2)
     return i_data
 
 
@@ -25,6 +32,7 @@ def plot_source_time_series(
     title="",
     show_legend=True,
     ci=True,
+    sig_times=None,
 ):
     """
     Plot time series data similar to plot_compare_evokeds but for source space data
@@ -49,6 +57,8 @@ def plot_source_time_series(
         Whether to show legend
     ci : bool
         Whether to show confidence intervals
+    sig_times : array or None
+        Array of significant time points to highlight
     """
     if ax is None:
         fig, ax = plt.subplots(figsize=(8, 4))
@@ -63,11 +73,22 @@ def plot_source_time_series(
         if ci and std_data_i is not None:
             ax.fill_between(
                 times,
-                ts_data - std_data_i,
-                ts_data + std_data_i,
+                std_data_i[0],
+                std_data_i[1],
                 color=color,
                 alpha=0.2,
             )
+
+    # Add significant time window if provided
+    if sig_times is not None and len(sig_times) > 0:
+        ymin, ymax = ax.get_ylim()
+        ax.fill_betweenx(
+            [ymin, ymax],
+            sig_times[0],
+            sig_times[-1],
+            color='orange',
+            alpha=0.3,
+        )
 
     ax.set_xlabel("Time (s)")
     ax.set_ylabel("Source Activity")
@@ -170,10 +191,13 @@ output_dir = pathjoin(source_results_dir, taskname)
 
 # Load grand averages
 fname = pathjoin(output_dir, "grand_average.pkl")
-grand_averages = pklload(fname)["grand_averages"]
-grand_averages_std = pklload(fname)["grand_averages_std"]
+data = pklload(fname)
+grand_averages = data["grand_averages"]
+grand_averages_ci = data["grand_averages_ci"] # each key: 2 x 1201 x n_vertices
 
 times = grand_averages["encode_face_happy"].times
+
+p_thresh = 0.001
 
 # Load significant clusters
 fname = pathjoin(output_dir, f"{taskname}_erp_permutationtest_st_all_cluster_vis.pkl")
@@ -191,12 +215,11 @@ factors = list(cluster_results.keys())
 
 # Example code to plot single cluster
 
-f, ax = plt.subplots(1, 3, figsize=(19, 4))
-
 i_factor = factors[0]
-significant_clusters = np.where(cluster_results[i_factor]["cluster_p"] < 0.01)[0]
+significant_clusters = np.where(cluster_results[i_factor]["cluster_p"] < p_thresh)[0]
 
-i_cluster = significant_clusters[0]
+cluster_idx = 0
+i_cluster = significant_clusters[cluster_idx]
 
 i_cluster = cluster_results[i_factor]["clusters"][i_cluster]
 i_times = i_cluster[0]
@@ -220,18 +243,18 @@ if i_factor == "factor_emo":
             get_cluster_time_series(grand_averages["probe_shape"], i_vertices),
         ],
     ]
-    comparisons_data_std_ts = [
+    comparisons_data_ci_ts = [
         [
-            get_cluster_time_series(
-                grand_averages_std["encode_face_happy"], i_vertices
+            get_cluster_time_series_ci(
+                grand_averages_ci["encode_face_happy"], i_vertices
             ),
-            get_cluster_time_series(grand_averages_std["encode_face_sad"], i_vertices),
-            get_cluster_time_series(grand_averages_std["encode_shape"], i_vertices),
+            get_cluster_time_series_ci(grand_averages_ci["encode_face_sad"], i_vertices),
+            get_cluster_time_series_ci(grand_averages_ci["encode_shape"], i_vertices),
         ],
         [
-            get_cluster_time_series(grand_averages_std["probe_face_happy"], i_vertices),
-            get_cluster_time_series(grand_averages_std["probe_face_sad"], i_vertices),
-            get_cluster_time_series(grand_averages_std["probe_shape"], i_vertices),
+            get_cluster_time_series(grand_averages_ci["probe_face_happy"], i_vertices),
+            get_cluster_time_series(grand_averages_ci["probe_face_sad"], i_vertices),
+            get_cluster_time_series(grand_averages_ci["probe_shape"], i_vertices),
         ],
     ]
     i_color = [colors_list[0], colors_list[1]]
@@ -255,33 +278,40 @@ elif i_factor == "factor_encprob":
             get_cluster_time_series(grand_averages["probe_shape"], i_vertices),
         ],
     ]
-    comparisons_data_std_ts = [
+
+    comparisons_data_ci_ts = [
         [
-            get_cluster_time_series(
-                grand_averages_std["encode_face_happy"], i_vertices
+            get_cluster_time_series_ci(
+                grand_averages_ci["encode_face_happy"], i_vertices
             ),
-            get_cluster_time_series(grand_averages_std["probe_face_happy"], i_vertices),
+            get_cluster_time_series_ci(grand_averages_ci["probe_face_happy"], i_vertices),
         ],
         [
-            get_cluster_time_series(grand_averages_std["encode_face_sad"], i_vertices),
-            get_cluster_time_series(grand_averages_std["probe_face_sad"], i_vertices),
+            get_cluster_time_series_ci(grand_averages_ci["encode_face_sad"], i_vertices),
+            get_cluster_time_series_ci(grand_averages_ci["probe_face_sad"], i_vertices),
         ],
         [
-            get_cluster_time_series(grand_averages_std["encode_shape"], i_vertices),
-            get_cluster_time_series(grand_averages_std["probe_shape"], i_vertices),
+            get_cluster_time_series_ci(grand_averages_ci["encode_shape"], i_vertices),
+            get_cluster_time_series_ci(grand_averages_ci["probe_shape"], i_vertices),
         ],
     ]
     i_color = [colors_list[2], colors_list[3], colors_list[4]]
 
 for i, i_comparison in enumerate(comparisons):
+    
     f, ax = plt.subplots(1, 3, figsize=(19, 4))
+    
+    # Get significant times if they exist
+    sig_times = times[np.unique(i_times)] if len(i_times) > 0 else None
+    
     plot_source_time_series(
         comparisons_data_ts[i],
-        comparisons_data_std_ts[i],
+        comparisons_data_ci_ts[i],
         times,
         i_color[i],
         i_comparison,
         ax=ax[1],
+        sig_times=sig_times  # Pass the significant times
     )
 
-    plt.savefig("anan.jpg")
+    plt.savefig(os.path.join(results_dir, f"{taskname}_cluster_{cluster_idx}_{i_factor}_{i_comparison[0]}X{i_comparison[1]}.jpg"))
