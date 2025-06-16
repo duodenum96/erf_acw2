@@ -3,6 +3,8 @@ from erf_acw2.src import pklsave, pklload, get_commonsubj, import_exampleraw
 import numpy as np
 import mne
 
+p_thresh = 0.001
+
 raw = import_exampleraw()
 
 sfreq = raw.info["sfreq"]
@@ -53,7 +55,7 @@ for effect_name in effect_names:
         tstep=tstep,
         vertices=fsave_vertices,
         subject="fsaverage",
-        p_thresh=0.05,
+        p_thresh=p_thresh,
         tmin=-0.3,
     )
 

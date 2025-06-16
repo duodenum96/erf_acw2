@@ -4,12 +4,15 @@ import os
 from os.path import join as pathjoin
 import sys
 from erf_acw2.src import get_commonsubj
+import multiprocessing as mp
 
 os.chdir("/BICNAS2/ycatal/erf_acw2/scripts/preprocessing")
 from scripts.preprocessing.rest_badICs import exclude, badics
 from scipy import signal
 import matplotlib.pyplot as plt
 from erf_acw2.src import pklload, pklsave, badchan_padnan_2d
+
+from mne.stats.permutations import _ci
 
 taskname = "haririhammer"
 subjects_dir = "/BICNAS2/group-northoff/NIMH_source_reconstruction"
@@ -60,7 +63,31 @@ for i, i_subj in enumerate(subjs_common):
     print(f"{i+1} / {nsubj}")
 
 grand_averages = {i: np.mean(task_stcs[i]) for i in tasknames}
-grand_averages_std = {i: np.nanstd(task_stcs[i]) for i in tasknames}  
+# grand_averages_std = {i: np.nanstd(task_stcs[i]) for i in tasknames}  
+
+grand_averages_ci = {i: np.zeros((2, 1201, n_vertices_morphed)) for i in tasknames}
+
+def process_vertex(vertex_idx):
+    """Process a single vertex across all tasks"""
+    vertex_results = {}
+    for j in tasknames:
+        vertex_results[j] = _ci(tasks[j][:, :, vertex_idx])
+
+    print(f"{vertex_idx+1} / {n_vertices_morphed}")
+    return vertex_idx, vertex_results
+
+# Use multiprocessing to process vertices in parallel
+with mp.Pool(processes=70) as pool:
+    results = pool.map(process_vertex, range(n_vertices_morphed))
+
+# Collect results back into grand_averages_ci
+for vertex_idx, vertex_results in results:
+    for j in tasknames:
+        grand_averages_ci[j][:, :, vertex_idx] = vertex_results[j]
+    if (vertex_idx + 1) % 100 == 0:  # Print progress every 100 vertices
+        print(f"{vertex_idx+1} / {n_vertices_morphed}")
 
 fname = pathjoin(output_dir, "grand_average.pkl")
-pklsave(fname, {"grand_averages":grand_averages, "grand_averages_std":grand_averages_std})
+pklsave(fname, {"grand_averages":grand_averages, "grand_averages_ci":grand_averages_ci})
+
+
