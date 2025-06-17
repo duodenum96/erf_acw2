@@ -74,4 +74,5 @@ print(
     f"/ {np.min(dists):.2f} mm / {np.max(dists):.2f} mm"
 )
 
-mne.write_trans(pathjoin(subj_preprocpath, "rest", "alignment-trans.fif"), coreg.trans)
+mne.write_trans(pathjoin(subj_preprocpath, "rest", "alignment-trans.fif"), coreg.trans, overwrite=True)
+print(f"Alignment saved to {pathjoin(subj_preprocpath, 'rest', 'alignment-trans.fif')}")

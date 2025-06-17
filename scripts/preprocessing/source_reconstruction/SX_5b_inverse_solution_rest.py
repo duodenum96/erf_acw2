@@ -69,6 +69,10 @@ stcs = mne.minimum_norm.apply_inverse_epochs(
 # pklsave(pathjoin(subj_preprocpath, "rest", "stc.pkl"), stc)
 
 ################## Alignment ##################
+
+del noise_cov
+del inverse_operator
+
 fsaverage_bem_path = "/BICNAS2/group-northoff/NIMH_source_reconstruction/fsaverage_bem"
 fname_fsaverage_src = pathjoin(fsaverage_bem_path, "fsaverage-ico-4-src.fif")
 
@@ -93,6 +97,9 @@ for stc in stcs:
 stcs_fsaverage = []
 for morph, stc in zip(morphs, stcs):
     stcs_fsaverage.append(morph.apply(stc))
+
+del morphs
+del stcs
 
 catenated_data = np.array([i.data for i in stcs_fsaverage])
 

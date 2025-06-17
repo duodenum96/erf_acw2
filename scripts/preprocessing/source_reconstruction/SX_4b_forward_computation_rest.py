@@ -70,8 +70,10 @@ fig.savefig(pathjoin(subj_preprocpath, "rest", "bem_oct6_src.png"))
 
 # Compute forward solution
 # Forward solution requires a BEM model
+conductivity = (0.3,)  # for single layer
 model = mne.make_bem_model(
-    subject=i_subj, subjects_dir=subjects_dir
+    subject=i_subj, subjects_dir=subjects_dir,
+    conductivity=conductivity,
 )
 bem = mne.make_bem_solution(model)
 
@@ -94,4 +96,5 @@ print(f'After:  {fwd["src"]}')
 leadfield = fwd["sol"]["data"]
 print(f"Leadfield size : {leadfield.shape[0]} sensors x {leadfield.shape[1]} dipoles")
 
-mne.write_forward_solution(pathjoin(subj_preprocpath, "rest", "forward-fwd.fif"), fwd)
+mne.write_forward_solution(pathjoin(subj_preprocpath, "rest", "forward-fwd.fif"), fwd, overwrite=True)
+print(f"Forward solution saved to {pathjoin(subj_preprocpath, 'rest', 'forward-fwd.fif')}")
