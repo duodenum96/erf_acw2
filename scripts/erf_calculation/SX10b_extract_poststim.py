@@ -479,21 +479,3 @@ for i_factor in factors:
                 plt.tight_layout()
                 plt.savefig(os.path.join(results_dir, f"{taskname}_cluster_{cluster_idx}_{i_factor}_{i_comparison[0]}X{i_comparison[1]}.jpg"), dpi=300)
 
-
-vertices_in_all_clusters = np.unique(np.concatenate([significant_clusters_to_save[i]["i_vertices"] for i in range(len(significant_clusters_to_save))]))
-
-pklsave(
-    os.path.join(results_dir, f"{taskname}_significant_clusters_to_save.pkl"),
-    {
-        "significant_clusters": significant_clusters_to_save,
-        "vertices_in_all_clusters": vertices_in_all_clusters,
-    },
-)
-
-all_multcomps_df = pd.concat(all_multcomps)
-p_values = all_multcomps_df["p-unc"].values
-p_values_corr = pg.multicomp(p_values, method="fdr_bh")
-
-all_multcomps_df["p-unc-corr"] = p_values_corr
-
-all_multcomps_df.to_csv(os.path.join(results_dir, f"{taskname}_multcomp_pvalues.csv"), index=False)
