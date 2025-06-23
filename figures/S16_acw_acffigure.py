@@ -25,9 +25,7 @@ ax.set_xlim(0, 0.25)
 f.savefig(join(figpath, "acf_mean.png"), dpi=800, transparent=True)
 ###### For gimmick
 mean_1d_acf = np.nanmean(mean_acf, axis=0)
-f, ax = plt.subplots(
-    
-)
+f, ax = plt.subplots()
 ax.plot(lags, mean_1d_acf, alpha=1.0, linewidth=4, color="k")
 ax.spines[["right", "top"]].set_visible(False)
 ax.set_xlabel("Lags")
