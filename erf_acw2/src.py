@@ -14,6 +14,10 @@ from mne.filter import next_fast_len
 import arviz as az
 import matplotlib as mpl
 from mpl_toolkits.axes_grid1 import AxesGrid
+from scipy.optimize import curve_fit
+
+def acf_oscillatory_function(t, a, tau, f):
+    return a * np.exp(-t / tau) + (1 - a) * np.cos(2 * np.pi * f * t)
 
 def calc_acw(ts, fs, nlags=None):
     """
@@ -39,6 +43,38 @@ def calc_acw(ts, fs, nlags=None):
     acw_50 = np.argmax(acfunc <= 0.5) / fs
     return acw_50, acfunc, lags
 
+def calc_acw_oscillatory_fitting(ts, fs, nlags=None):
+    """
+    Parameters
+    ----------
+    ts : 1D Numpy vector (Has to be in the shape (n, ). Otherwise won't work)
+        Time series.
+    fs : double
+        Sampling rate (in Hz).
+
+    Parametrize ACF as 
+    
+    a*exp(–t/τ) + (1 – a)*cos(2πft)
+
+    Returns
+    -------
+    tau : timescale
+    acfunc : Autocorrelation function (for troubleshooting / plotting etc.)
+    lags : x-axis of ACF, for plotting purposes
+    """
+    if nlags == None:
+        nlags = len(ts) - 1
+
+    acfunc = acf(ts, nlags=nlags - 1, qstat=False, alpha=None, missing="conservative")
+    lags = np.arange(0.0, nlags / fs, 1.0 / fs)
+
+    acw_euler = np.argmax(acfunc <= (1 / np.e)) / fs
+
+    popt, pcov = curve_fit(acf_oscillatory_function, lags, acfunc, p0=[0.9, acw_euler, 10.0])
+
+    return popt, acfunc, lags
+    
+
 
 def loop_acw_acf(epochs, nlags=None, ntrial=170, nchan=272):
     fs = epochs.info["sfreq"]
@@ -60,7 +96,35 @@ def loop_acw_acf(epochs, nlags=None, ntrial=170, nchan=272):
 
     return acw50s, acfs
 
+def loop_oscillatory_fitting(epochs, nlags=None, ntrial=170, nchan=272):
+    fs = epochs.info["sfreq"]
+    acws = np.zeros((ntrial, nchan))
+    acfs = np.zeros((ntrial, nchan, nlags))
+    popts = np.zeros((ntrial, nchan, 3))
 
+    c = 0
+    for i in range(ntrial):
+        if i in epochs.selection:
+            i_data = np.squeeze(epochs[c].get_data(copy=True))
+            for j in range(nchan):
+                try:
+                    popts[i, j, :], acfunc, lags = calc_acw_oscillatory_fitting(i_data[j, :], fs, nlags=nlags)
+                    acws[i, j] = popts[i, j, 1]
+                    acfs[i, j, :] = acfunc
+                except:
+                    print(f"Error fitting oscillatory function for channel {j} in trial {i}")
+                    popts[i, j, :] = np.nan
+                    acws[i, j] = np.nan
+                    acfs[i, j, :] = np.zeros(nlags)
+
+            c += 1
+        else:
+            acws[i, :] = np.nan
+            acfs[i, j, :] = np.nan
+            popts[i, j, :] = np.nan
+
+    return popts, acws, acfs
+    
 def subjs():
     return np.genfromtxt("/BICNAS2/ycatal/erf_acw/erf_acw/subjlist.txt", dtype="str")
 
@@ -179,6 +243,43 @@ def re_epoch(epochs, new_window_size, conservative=False):
         reepoched.selection = np.where(~np.all(nanidx, axis=(1, 2)))[0]
 
     return reepoched
+
+def stcs_get_data(stcs):
+    """
+    Get the data from a list of stcs.
+    """
+    return np.array([stc.data for stc in stcs]) # Trials x vertices x timepoints
+
+
+# def re_epoch_stcs(stcs, new_window_size, drop_log, selection, conservative=False):
+#     """
+#     If conservative, then drop all epochs that contain any nan.
+#     stcs is a list of stcs. Each stc is a SourceEstimate object. This is the output of `apply_inverse_epochs`.
+#     """
+#     ntrial = len(drop_log)
+#     nvertices = stcs[0].data.shape[0]
+#     n_timepoints = stcs[0].data.shape[1]
+#     all_data = np.zeros((ntrial, nvertices, n_timepoints))
+
+#     all_data[selection, :, :] = stcs_get_data(stcs)
+#     all_data[np.setdiff1d(np.arange(ntrial), selection), :, :] = np.nan
+
+#     # You are here. 
+
+#     pseudo_raw_data = np.hstack(all_data)
+#     re_raw = mne.io.RawArray(pseudo_raw_data, epochs.info)
+
+#     reepoched = mne.make_fixed_length_epochs(
+#         re_raw, duration=new_window_size, preload=True
+#     )
+#     # Mark the nans as not selected
+#     nanidx = np.isnan(reepoched.get_data())
+#     if conservative:
+#         reepoched.selection = np.where(~np.any(nanidx, axis=(1, 2)))[0]
+#     else:
+#         reepoched.selection = np.where(~np.all(nanidx, axis=(1, 2)))[0]
+
+#     return reepoched
 
 
 # Do we really need this?
