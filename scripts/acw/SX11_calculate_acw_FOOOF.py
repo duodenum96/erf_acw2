@@ -42,7 +42,7 @@ print(f"Loaded source PSDs in {toc - tic} seconds")
 # Average PSDs across epochs
 average_psd = np.nanmean(psds, axis=0)
 
-fmin, fmax = 3, 50
+fmin, fmax = 1, 50
 
 freqs_filtered = freqs[(freqs >= fmin) & (freqs <= fmax)]
 average_psd_filtered = average_psd[:, (freqs >= fmin) & (freqs <= fmax)]
