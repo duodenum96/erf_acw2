@@ -64,6 +64,7 @@ stcs = mne.minimum_norm.apply_inverse_epochs(
     lambda2,
     method=method,
     verbose=True,
+    pick_ori="normal",
 )
 
 # stc is way too big. Instead of saving stc, save ACFs and PSDs after alignment
@@ -109,14 +110,22 @@ del stcs_fsaverage
 
 nlags = 5000
 
+n_good_trials = np.sum(np.all(~np.isnan(catenated_data), axis=(1, 2)))
+
+print("Starting ACF calculation")
+
 acfs = np.zeros((catenated_data.shape[1], nlags+1))
 for i in range(catenated_data.shape[0]):
     for j in range(catenated_data.shape[1]):
-        autocorrelation_func = acf(catenated_data[i, j, :], nlags=nlags)
+        data = catenated_data[i, j, :]
+        if np.isnan(data).any():
+            print(f"NaN found in data for {i_subj} {j}")
+            continue
+        autocorrelation_func = acf(data, nlags=nlags)
         acfs[j, :] += autocorrelation_func
     print(f"{i+1} / {catenated_data.shape[0]}")
 
-acfs /= catenated_data.shape[0]
+acfs /= n_good_trials
 
 pklsave(pathjoin(subj_preprocpath, "rest", "source_acfs.pkl"), {"acfs": acfs})
 print(f"Saved source_acfs.pkl for {i_subj}")

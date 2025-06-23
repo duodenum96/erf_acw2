@@ -11,6 +11,7 @@ from scripts.preprocessing.rest_badICs import exclude, badics
 from scipy import signal
 import matplotlib.pyplot as plt
 from erf_acw2.src import pklload, pklsave, pick_megchans, re_epoch
+from statsmodels.tsa.stattools import acf
 
 subjects_dir = "/BICNAS2/group-northoff/NIMH_source_reconstruction"
 
@@ -102,8 +103,19 @@ del morphs
 del stcs
 
 catenated_data = np.array([i.data for i in stcs_fsaverage])
+del stcs_fsaverage
 
 freqs, psds = signal.periodogram(catenated_data, fs=epochs_meg.info["sfreq"], window="hamming", axis=2)
 
-pklsave(pathjoin(subj_preprocpath, "rest", "source_psds.pkl"), {"psds": psds, "freqs": freqs})
+nlags = catenated_data.shape[2] - 1
+
+acfs = np.zeros((catenated_data.shape[0], catenated_data.shape[1], nlags+1))
+for i in range(catenated_data.shape[0]):
+    for j in range(catenated_data.shape[1]):
+        autocorrelation_func = acf(catenated_data[i, j, :], nlags=nlags)
+        acfs[i, j, :] = autocorrelation_func
+    print(f"{i+1} / {catenated_data.shape[0]}")
+
+
+pklsave(pathjoin(subj_preprocpath, "rest", "source_psds.pkl"), {"psds": psds, "freqs": freqs, "acfs": acfs})
 print(f"Saved source_psds.pkl for {i_subj}")
