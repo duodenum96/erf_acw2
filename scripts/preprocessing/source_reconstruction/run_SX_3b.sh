@@ -2,10 +2,10 @@
 
 cd /BICNAS2/ycatal/erf_acw2/scripts/preprocessing/source_reconstruction
 
-for i in {41..60}
+for i in {31..60}
 do
-    nohup python SX_6a_morphing_haririhammer.py $i > log/SX_6a_morphing_haririhammer_$i.log &
-    echo $! >> log/SX_6a_morphing_haririhammer.pid
+    nohup python SX_3b_alignment_rest.py $i > log/SX_3b_alignment_rest_$i.log &
+    echo $! >> log/SX_3b_alignment_rest.pid
 done
 
 # In case something goes wrong, kill the processes with:

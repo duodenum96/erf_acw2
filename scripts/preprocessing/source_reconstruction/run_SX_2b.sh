@@ -4,8 +4,8 @@ cd /BICNAS2/ycatal/erf_acw2/scripts/preprocessing/source_reconstruction
 
 for i in {41..60}
 do
-    nohup python SX_6a_morphing_haririhammer.py $i > log/SX_6a_morphing_haririhammer_$i.log &
-    echo $! >> log/SX_6a_morphing_haririhammer.pid
+    nohup python SX_2b_calculate_noise_covariance_prestim.py $i > log/SX_2b_calculate_noise_covariance_prestim_$i.log &
+    echo $! >> log/SX_2b_calculate_noise_covariance_prestim.pid
 done
 
 # In case something goes wrong, kill the processes with:

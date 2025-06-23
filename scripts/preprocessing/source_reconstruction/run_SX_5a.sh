@@ -2,10 +2,10 @@
 
 cd /BICNAS2/ycatal/erf_acw2/scripts/preprocessing/source_reconstruction
 
-for i in {31..60}
+for i in {41..60}
 do
-    nohup python SX_5a_inverse_solution_haririhammer.py $i > log/SX_5a_inverse_solution_haririhammer_$i.log &
-    echo $! >> log/SX_5a_inverse_solution_haririhammer.pid
+    nohup python SX_5a2_inverse_solution_haririhammer_prestim.py $i > log/SX_5a2_inverse_solution_haririhammer_prestim_$i.log &
+    echo $! >> log/SX_5a2_inverse_solution_haririhammer_prestim.pid
 done
 
 # In case something goes wrong, kill the processes with:
