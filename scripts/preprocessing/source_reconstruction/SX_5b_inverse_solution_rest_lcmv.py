@@ -58,63 +58,18 @@ filters = mne.beamformer.make_lcmv(
     rank=None,
 )
 
-
 stcs = mne.beamformer.apply_lcmv_epochs(epochs_meg, filters)
 
-################## Alignment ##################
-
-del noise_cov
-del data_cov
-del filters
-
-fsaverage_bem_path = "/BICNAS2/group-northoff/NIMH_source_reconstruction/fsaverage_bem"
-fname_fsaverage_src = pathjoin(fsaverage_bem_path, "fsaverage-vol-5-src.fif")
-
-fsaverage_src_path = pathjoin(fsaverage_bem_path, "fsaverage-vol-5-src.fif")
-if not os.path.exists(fsaverage_src_path):
-    srcX = mne.setup_source_space("fsaverage", spacing="oct6", subjects_dir=subjects_dir)
-    mne.write_source_spaces(fsaverage_src_path, srcX, overwrite=True)
-
-src_to = mne.read_source_spaces(fname_fsaverage_src)
-
-
-morph = mne.compute_source_morph(
-    src,
-    subject_from=i_subj,
-    subject_to="fsaverage",
-    src_to=src_to,
-    subjects_dir=subjects_dir,
+labels_path = pathjoin(subjects_dir, i_subj, "mri", "aparc.a2009s+aseg.mgz")
+parcellated_ts = mne.extract_label_time_course(
+    stcs, labels_path, src, # allow_empty=True
 )
 
-morph.compute_vol_morph_mat()
+labels = mne.get_volume_labels_from_aseg(labels_path)
+# print(labels)
 
-stcs_fsaverage = []
-for stc in stcs:
-    stcs_fsaverage.append(morph.apply(stc))
+catenated_data = np.array(parcellated_ts)
 
-del morph
-del stcs
-
-catenated_data = np.array([i.data for i in stcs_fsaverage])
-del stcs_fsaverage
-
-#############################################
-glasser = mne.datasets.fetch_hcp_mmp_parcellation(subjects_dir=fsaverage_bem_path)
-labels = mne.read_labels_from_annot(
-    "fsaverage", "HCPMMP1", "both", subjects_dir=fsaverage_bem_path
-)
-lh_labels_path = pathjoin(fsaverage_bem_path, "fsaverage", 
-                       "label", "lh.HCPMMP1.annot")
-
-aparc_path = pathjoin(fsaverage_bem_path, "fsaverage", "mri", "aparc.a2009s+aseg.mgz")
-
-stc_label = stcs[0].extract_label_time_course("aparc", src_to)
-
-label_ts = mne.extract_label_time_course(
-    stcs_fsaverage, aparc_path, src_to, mode="mean", allow_empty=True
-)
-
-#############################################
 
 # freqs, psds = signal.periodogram(catenated_data, fs=epochs_meg.info["sfreq"], window="hamming", axis=2)
 
@@ -137,5 +92,7 @@ for i in range(catenated_data.shape[0]):
 
 acfs /= n_good_trials
 
-pklsave(pathjoin(subj_preprocpath, "rest", "source_acfs.pkl"), {"acfs": acfs})
-print(f"Saved source_acfs.pkl for {i_subj}")
+freqs, psd = signal.periodogram(catenated_data, fs=epochs_meg.info["sfreq"], window="hamming", axis=2)
+
+pklsave(pathjoin(subj_preprocpath, "rest", "source_lcmv.pkl"), {"acfs": acfs, "catenated_data": catenated_data, "freqs": freqs, "psd": psd, "labels": labels})
+print(f"Saved source_lcmv.pkl for {i_subj}")
