@@ -4,8 +4,8 @@ cd /BICNAS2/ycatal/erf_acw2/scripts/preprocessing/source_reconstruction
 
 for i in {51..60}
 do
-    nohup python SX_5b_inverse_solution_rest_acf.py $i > log/SX_5b_inverse_solution_rest_acf_$i.log &
-    echo $! >> log/SX_5b_inverse_solution_rest_acf.pid
+    nohup python SX_5b_inverse_solution_rest_lcmv.py $i > log/SX_5b_inverse_solution_rest_lcmv_$i.log &
+    echo $! >> log/SX_5b_inverse_solution_rest_lcmv.pid
 done
 
 # In case something goes wrong, kill the processes with:

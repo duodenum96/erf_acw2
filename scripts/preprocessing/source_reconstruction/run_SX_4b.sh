@@ -2,10 +2,10 @@
 
 cd /BICNAS2/ycatal/erf_acw2/scripts/preprocessing/source_reconstruction
 
-for i in {31..60}
+for i in {41..60}
 do
-    nohup python SX_4b_forward_computation_rest.py $i > log/SX_4b_forward_computation_rest_$i.log &
-    echo $! >> log/SX_4b_forward_computation_rest.pid
+    nohup python SX_4b_forward_computation_rest_volume.py $i > log/SX_4b_forward_computation_rest_volume_$i.log &
+    echo $! >> log/SX_4b_forward_computation_rest_volume.pid
 done
 
 # In case something goes wrong, kill the processes with:
