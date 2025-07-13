@@ -13,3 +13,5 @@ sol = solve(prob, SKenCarp(), saveat=tsteps, tstops=tstops)
 
 plot(sol, idxs=1)
 plot!(sol, idxs=2)
+
+# Compare with ND

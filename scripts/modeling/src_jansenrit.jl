@@ -130,6 +130,57 @@ function jansenrit_2d_noise!(dx, x, p, t)
     dx[12] = (p.c_noise * p.H_E) / p.tau_E
 end
 
+"""
+dx: 8 x n equations
+A_F and A_B are nxn matrices. A_F contains only forward connections, A_B contains only 
+backward. Assuming your regions going from lower order to higher order from 1 to n, 
+A_F should be a lower triangular matrix and A_B should be an upper triangular. 
+"""
+function jansenrit_nd!(dx, x, p, t)
+    n = size(x, 2)
+    S(x) = S_general(x, p.E0, p.r)
+
+    dx[1, :] .= x[4, :]
+    dx[2, :] .= x[5, :]
+    dx[3, :] .= x[6, :]
+    dx[7, :] .= x[8, :]
+
+    y = x[2, :] .- x[3, :]
+
+    a_F = p.A_F * S.(y)
+    a_L = p.A_L * S.(y)
+    a_B = p.A_B * S.(y)
+
+    for i in 1:n
+        dx[4, i] =
+                (p.H_E / p.tau_E) * (
+                    a_F[i] + 
+                    a_L[i] + 
+                    p.gamma_1[i] * S(y[i]) .+ p.u
+                    ) -
+                (2 / p.tau_E) * x[4, i] - (1 / (p.tau_E^2)) * x[1, i]
+        dx[5, i] =
+                (p.H_E / p.tau_E) .* (
+                    a_B[i] + a_L[i] + p.gamma_2[i] * S(x[1, i])
+                    ) -
+                (2 / p.tau_E) * x[5, i] - (1 / (p.tau_E^2)) * x[2, i]
+        dx[6, i] =
+                (p.H_I / p.tau_I) * 
+                p.gamma_4[i] * S(x[7, i]) - (2 / p.tau_I) * x[6, i] - (1 / (p.tau_I^2)) * x[3, i]
+        dx[8, i] =
+                (p.H_E / p.tau_E) * (
+                    a_B[i] + a_L[i] + p.gamma_3[i] * S(y[i])
+                    ) -
+                (2 / p.tau_E) * x[8, i] - (1 / (p.tau_E^2)) * x[7, i]
+    end
+
+    return nothing
+end
+
+function jansenrit_nd_noise!(dx, x, p, t)
+    dx[4, :] .= (p.c_noise * p.H_E) / p.tau_E
+end
+
 ################## 2D stuff but not using labeled arrays because parallelized GSA doesn't like them (https://www.youtube.com/watch?v=UJYT-adBCfk) ############
 
 function jansenrit_2d_noLA!(dx, x, p, t)
@@ -456,6 +507,27 @@ function get_default_param(restortask = "task", dim=1)
             tstops = 5:5:95
         ))
         x0 = zeros(16)
+    elseif dim > 2
+        p = LVector((
+            H_E = 3.25,
+            H_I = 29.3,
+            tau_E = 10 / 1000,
+            tau_I = 15 / 1000,
+            gamma_1 = ones(dim) .* 50,
+            gamma_2 = ones(dim) .* 0.8 .* 50,
+            gamma_3 = ones(dim) .* 0.25 .* 50,
+            gamma_4 = ones(dim) .* 0.25 .* 50,
+            E0 = 2.5,
+            r = 0.56,
+            c = 1e4,
+            c_noise = 0.05,
+            A_F = zeros(dim, dim),
+            A_B = zeros(dim, dim),
+            A_L = zeros(dim, dim),
+            u = 0,
+            tstops = 5:5:95
+        ))
+        x0 = zeros(8, dim)
     end
 
     tspan = (0.0, 100.0)
@@ -477,7 +549,7 @@ function acw_simple(x, fs=1200)
     acw50 = findmax(acf .<= 0.5)[2] / fs
     acw0 = findmax(acf .<= 0.0)[2] / fs
 
-    return acw0, acw50
+    return acw0, acw50, acf
 end
 
 function dynamic_acw(x; fs = 1200, windowsize=10, simple=false)
@@ -489,20 +561,22 @@ function dynamic_acw(x; fs = 1200, windowsize=10, simple=false)
     acw0s = zeros(nwindow)
     acw50s = zeros(nwindow)
     acwdrs = zeros(nwindow)
+    acfs = []
     if !simple
         for i in 1:nwindow
             acw0s[i], acw50s[i], acwdrs[i] = acw(x[swindows[i][1]:swindows[i][2]])
         end
     else
         for i in 1:nwindow
-            acw0s[i], acw50s[i] = acw_simple(x[swindows[i][1]:swindows[i][2]])
+            acw0s[i], acw50s[i], acf = acw_simple(x[swindows[i][1]:swindows[i][2]])
+            push!(acfs, acf)
         end
     end
 
     if !simple
         return mean(acw0s), mean(acw50s), mean(acwdrs), std(acw0s), std(acw50s), std(acwdrs), acw0s
     else
-        return mean(acw0s), mean(acw50s), std(acw0s), std(acw50s), acw0s
+        return mean(acw0s), mean(acw50s), std(acw0s), std(acw50s), acw0s, acfs
     end
 end
 
@@ -529,7 +603,7 @@ function calc_erf(y, tstops; fs=1200, tlim=(-0.3, 0.7), threshold=1.0)
     erf_preonset = erf[time .<= 0]
     sd = std(erf_preonset)
     erf_mean = mean(erf_preonset)
-    activationflag = erf_rms > (erf_mean+sd) ? true : false
+    activationflag = erf_rms > (erf_mean + 2sd) ? true : false
     
     return erf, erf_rms, erfs, activationflag
 end

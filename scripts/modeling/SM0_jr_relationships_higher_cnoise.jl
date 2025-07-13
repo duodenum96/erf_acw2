@@ -1,6 +1,6 @@
 # cd /BICNAS2/ycatal/erf_acw2/scripts/modeling
-# nohup julia SM0_jr_relationships.jl > log/SM0_jr_relationships.log &
-# echo $! > log/SM0_jr_relationships.pid
+# nohup julia -t 20 SM0_jr_relationships_higher_cnoise.jl > log/SM0_jr_relationships_higher_cnoise.log &
+# echo $! > log/SM0_jr_relationships_higher_cnoise.pid
 using Pkg
 cd("/BICNAS2/ycatal/erf_acw2/scripts/modeling")
 Pkg.activate(".")
@@ -27,6 +27,7 @@ A_L_values = collect(LinRange(0.0, 20.0, ngamma))
 nA_L = length(A_L_values)
 p, x0, tspan, tsteps = get_default_param("rest", 2)
 p.A_F = 2.5 # Arbitrary value
+p.c_noise = 0.1
 
 prob = SDEProblem(jansenrit_2d!, jansenrit_2d_noise!, x0, tspan, p)
 ensembleprob = EnsembleProblem(prob)
@@ -93,9 +94,9 @@ for testval_name in testvals_names
     all_acw50s[testval_name] = copy(acw50s)
 end
 
-jldsave(joinpath(savepath, "supplementary_sensitivity_control_rest.jld2");
+jldsave(joinpath(savepath, "supplementary_sensitivity_control_rest_higher_cnoise.jld2");
         all_acw50s=all_acw50s)
-jldsave(joinpath(savepath, "supplementary_sensitivity_control_rest_acf_and_psd.jld2");
+jldsave(joinpath(savepath, "supplementary_sensitivity_control_rest_higher_cnoise_acf_and_psd.jld2");
         all_acfs=all_acfs, all_psds=all_psds, freqs=freqs, lags=lags, A_F_values=A_F_values,
         A_B_values=A_B_values, A_L_values=A_L_values, gamma_1_values=gamma_1_values)
 println("DONE")
