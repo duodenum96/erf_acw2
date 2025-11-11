@@ -9,9 +9,9 @@ import pingouin as pg
 from os.path import join
 import matplotlib as mpl
 
-sns.set_theme()
-sns.set_theme(style="whitegrid")
-so.Plot.config.theme.update(axes_style("whitegrid"))
+# sns.set_theme()
+# sns.set_theme(style="whitegrid")
+# so.Plot.config.theme.update(axes_style("whitegrid"))
 
 figpath = "/BICNAS2/ycatal/erf_acw2/figures/figs/model_f1"
 

@@ -28,10 +28,14 @@ task = "haririhammer"
 effect_names = ["factor_interaction", "factor_encprob", "factor_emo"]
 
 hh_acw = pklload(f"/BICNAS2/ycatal/erf_acw2/results/int/rest_int_oscillatory_fit.pkl")["rest_acws"]
+alpha = pklload(f"/BICNAS2/ycatal/erf_acw2/results/int_fooof/rest_alpha_power.pkl")["rest_alpha_power"]
 
 restmean = np.nanmedian(hh_acw, axis=0) # backwards compatibility
 
 ###################################################################
+
+def z_score(x, axis=0):
+    return (x - np.nanmean(x, axis=axis)) / np.nanstd(x, axis=axis)
 
 figpath = "/BICNAS2/ycatal/erf_acw2/figures/figs/figure5"
 
@@ -163,6 +167,8 @@ ncol =  3
 rhos = np.zeros((nrow,ncol,3)) # row x col x happy/sad/shape
 pvals = np.zeros((nrow,ncol,3))
 
+mvar_tables = {comparisons[i][j]: [] for j in range(len(comparisons[i])) for i in range(len(Xs))}
+
 row = 0
 col = 0
 pf_idx = 0 # pass or fail index
@@ -231,11 +237,16 @@ for i in range(len(Xs)):
                 erf_violins[k_comp].append(np.sqrt(np.mean( # rms
                     evokeds[k_comp][l].get_data()[np.ix_(picks, time_inds)] ** 2, axis=1))
                       * 1e15) # 1e15: tesla to femtotesla
-
         for m, m_key in enumerate(erf_violins.keys()):
-            corr_results = sp.stats.spearmanr(np.nanmean(np.array(erf_violins[m_key]), axis=0), np.nanmean(restmean[picks, :], axis=1))
+            corr_results = sp.stats.spearmanr(np.nanmean(np.array(erf_violins[m_key]), axis=0), np.nanmean(alpha[picks, :], axis=1))
             rhos[row, col, m] = corr_results.statistic
             pvals[row, col, m] = corr_results.pvalue
+
+            y = np.nanmean(np.array(erf_violins[m_key]), axis=0)
+            X = np.array((np.nanmean(alpha[picks, :], axis=1), np.nanmean(restmean[picks, :], axis=1))).T
+            mv_regression = pg.linear_regression(z_score(X, axis=0), z_score(y, axis=0))
+
+            mvar_tables[comparisons[i][m]].append(mv_regression)
         
         pf_idx += 1
         col += 1
@@ -244,8 +255,6 @@ for i in range(len(Xs)):
             row += 1
 
 pvals_correct = pg.multicomp(pvals, method="fdr_bh")[1]
-
-
 
 #### Now that we corrected p values, we can run the loop again to plot (fuck my life, I'm not paid enough to do this shit)
 # fig, ax = plt.subplots(nrow, ncol, figsize=(20, 15), layout="constrained")
@@ -331,9 +340,9 @@ for i in range(len(Xs)):
             p = pvals_correct[row, col, m]
             label = f"{comparisons_nicer3[i][m]} $ \\rho $={rho:.2f}{p2str(p)}"
             # label = f"{comparisons_nicer3[i][m]}"
-            ax[row, col].scatter(np.nanmean(restmean[picks, :], axis=1), np.nanmean(np.array(erf_violins[m_key]), axis=0), c=colors[m_key], label=label)
-            m, n = np.polyfit(np.nanmean(restmean[picks, :], axis=1), np.nanmean(np.array(erf_violins[m_key]), axis=0), 1)
-            ax[row, col].plot(np.nanmean(restmean[picks, :], axis=1), m * np.nanmean(restmean[picks, :], axis=1) + n, c=colors[m_key])
+            ax[row, col].scatter(np.nanmean(alpha[picks, :], axis=1), np.nanmean(np.array(erf_violins[m_key]), axis=0), c=colors[m_key], label=label)
+            m, n = np.polyfit(np.nanmean(alpha[picks, :], axis=1), np.nanmean(np.array(erf_violins[m_key]), axis=0), 1)
+            ax[row, col].plot(np.nanmean(alpha[picks, :], axis=1), m * np.nanmean(alpha[picks, :], axis=1) + n, c=colors[m_key])
         
         ax[row, col].legend(frameon=True, fancybox=False)
         ax[row, col].spines[['right', 'top']].set_visible(False)
@@ -351,7 +360,7 @@ for i in range(len(Xs)):
         if col == 0:
             ax[row,col].set_ylabel("ERF")
         if row == 1:
-            ax[row,col].set_xlabel("$ \\tau $")
+            ax[row,col].set_xlabel("Alpha Power")
 
         ################################## DO THE INSETS (FUUUUUUUUUUUUUUUUUUUUUCK) ##################################
         # plot average test statistic and mark significant sensors
@@ -409,7 +418,61 @@ for i in range(len(Xs)):
             row += 1        
 
 plt.tight_layout()
-fig.savefig(pathjoin(figpath, "f5_acw_oscillatory_fit.png"), dpi=300, transparent=False)
+fig.savefig(pathjoin(figpath, "f5_acw_oscillatory_fit_control_alpha.png"), dpi=300, transparent=False)
 
+#################### Make multivariate regression table #########################################################
 
+# mvar_tables: a dictionary of lists
+# lists: encode_face_happy, encode_face_sad, encode_shape, probe_face_happy, probe_face_sad, probe_shape
+# In each list, encodes have 4 elements, probes have 2 elements
 
+def create_regression_summary_table(mvar_tables):
+    """Create a comprehensive summary table from multivariate regression results."""
+    
+    # Initialize lists to store summary data
+    summary_data = []
+    
+    # Define predictor names for clarity
+    predictor_names = {'x1': 'Alpha Power', 'x2': 'ACW'}
+    
+    # Loop through each condition
+    for condition, regression_list in mvar_tables.items():
+        for cluster_idx, regression_df in enumerate(regression_list):
+            
+            # Extract key statistics for each predictor (excluding intercept)
+            predictors = regression_df[regression_df['names'] != 'Intercept']
+            
+            for _, row in predictors.iterrows():
+                predictor = row['names']
+                predictor_name = predictor_names.get(predictor, predictor)
+                
+                summary_data.append({
+                    'Condition': condition.replace('_', ' ').title(),
+                    'Cluster': cluster_idx + 1,
+                    'Predictor': predictor_name,
+                    'Coefficient': row['coef'],
+                    'SE': row['se'],
+                    'T-value': row['T'],
+                    'P-value': row['pval'],
+                    'R²': row['r2'],
+                    'Adj. R²': row['adj_r2'],
+                    'CI Lower': row['CI[2.5%]'],
+                    'CI Upper': row['CI[97.5%]'],
+                    'Significant': '***' if row['pval'] < 0.001 else '**' if row['pval'] < 0.01 else '*' if row['pval'] < 0.05 else ''
+                })
+    
+    # Create DataFrame
+    summary_df = pd.DataFrame(summary_data)
+    return summary_df
+
+# Create the summary table
+regression_summary = create_regression_summary_table(mvar_tables)
+
+ps_alpha = regression_summary[regression_summary["Predictor"] == "Alpha Power"]["P-value"].values
+ps_acw = regression_summary[regression_summary["Predictor"] == "ACW"]["P-value"].values
+ps = regression_summary["P-value"].values
+ps_corrected = pg.multicomp(ps, method="fdr_bh")[1]
+
+regression_summary["P-value (corrected)"] = ps_corrected
+
+regression_summary.to_csv(pathjoin(figpath, "f5_acw_oscillatory_fit_control_alpha_regression_summary.csv"), index=False)

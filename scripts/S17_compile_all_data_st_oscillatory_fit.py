@@ -15,6 +15,7 @@ nsubj = len(subjs_common)
 
 # Import ACW data
 acw_results = pklload(f"/BICNAS2/ycatal/erf_acw2/results/int/rest_int_oscillatory_fit.pkl")
+alpha_results = pklload(f"/BICNAS2/ycatal/erf_acw2/results/int_fooof/rest_alpha_power.pkl")["rest_alpha_power"]
 acws_all = acw_results["rest_acws"]
 acws = np.nanmean(acws_all, axis=0)
 
@@ -123,6 +124,7 @@ ycoords = []
 erftype = []
 clusternames = []
 cluster_names = ["Encode #1", "Encode #2", "Encode #3", "Encode #4", "Probe #1", "Probe #2"]
+alpha_powers = []
 
 nrow = 2
 ncol = 3
@@ -218,7 +220,7 @@ for i in range(len(Xs)):
                     ycoords.append(ycoord[channel])
                     erftype.append(k_comp)
                     clusternames.append(cluster_names[c])
-
+                    alpha_powers.append(alpha_results[channel, m])
 
         pf_idx += 1
         col += 1
@@ -240,7 +242,8 @@ data = pd.DataFrame(
         "xcoords": xcoords,
         "ycoords": ycoords,
         "erftype": erftype,
-        "clusternames": clusternames
+        "clusternames": clusternames,
+        "alpha_powers": alpha_powers
     }
 )
 

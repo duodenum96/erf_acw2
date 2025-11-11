@@ -5,7 +5,7 @@ import mne
 import sys
 import os
 from os.path import join as pathjoin
-from erf_acw.src import get_commonsubj, pklsave, get_subjdatapath
+from erf_acw2.src import get_commonsubj, pklsave, get_subjdatapath
 
 taskname = "haririhammer"
 

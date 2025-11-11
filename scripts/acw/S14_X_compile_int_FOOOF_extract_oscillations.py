@@ -11,7 +11,8 @@ from fooof.bands import Bands
 
 bands = Bands({'theta' : [4, 8],
                'alpha' : [8, 12],
-               'beta' : [15, 30]})
+               'beta' : [15, 30],
+               "gamma" : [30, 50]})
 
 nchan = 272
 
@@ -23,7 +24,18 @@ rest_ntp = int((rest_ntp * 3) / 10)
 subjs_common = get_commonsubj()
 nsubj = subjs_common.shape[0]
 
-rest_alpha_power = np.zeros((nchan, nsubj))
+band_powers = {"theta": np.zeros((nchan, nsubj)),
+               "beta": np.zeros((nchan, nsubj)),
+               "alpha": np.zeros((nchan, nsubj)),
+               "gamma": np.zeros((nchan, nsubj))}
+
+band_fooof_results = {"theta": np.zeros((nchan, nsubj, 3)),
+               "beta": np.zeros((nchan, nsubj, 3)),
+               "alpha": np.zeros((nchan, nsubj, 3)),
+               "gamma": np.zeros((nchan, nsubj, 3))}
+
+band_keys = list(bands.bands.keys())
+all_peak_params = []
 
 all_chidx = np.arange(272)
 ######## Load rest and task ACWs, store in a numpy array
@@ -33,25 +45,28 @@ for i, i_subj in enumerate(subjs_common):
     rest_i_fooof = pklload(restname)
     fg = rest_i_fooof["fm"]
 
+    all_peak_params.append([i.peak_params for i in fg])
+
     # If there is a missing channel, find it and fill with nans
     missingchan_rest = np.setdiff1d(chlist, rest_i_fooof["chanlist"])
     if len(missingchan_rest) != 0:
         missing_idx_rest = np.where(chlist == missingchan_rest)[0]
         good_idx_rest = np.setdiff1d(all_chidx, missing_idx_rest)
 
-        rest_alpha_power[missing_idx_rest, i] = np.nan
+        for j in range(len(band_keys)):
+            band_powers[band_keys[j]][missing_idx_rest, i] = np.nan
     else:
         good_idx_rest = all_chidx.copy()
 
-    
-    alpha = fooof.analysis.get_band_peak_fg(fg, bands.alpha)
-    alpha_power = alpha[:, 1] # (n_chan, )
-    rest_alpha_power[good_idx_rest, i] = alpha_power
+    for band in band_keys:
+        power = fooof.analysis.get_band_peak_fg(fg, bands[band])
+        band_powers[band][good_idx_rest, i] = power[:, 1]
+        band_fooof_results[band][good_idx_rest, i, :] = power
 
-all_power = {"rest_alpha_power": rest_alpha_power}
-
-savename = f"/BICNAS2/ycatal/erf_acw2/results/int_fooof/rest_alpha_power.pkl"
-pklsave(savename, all_power)
+savename = f"/BICNAS2/ycatal/erf_acw2/results/int_fooof/rest_all_powers.pkl"
+pklsave(savename, band_powers)
+savename = f"/BICNAS2/ycatal/erf_acw2/results/int_fooof/rest_all_fooof_results.pkl"
+pklsave(savename, band_fooof_results)
 
 ##########################################################################
 import pingouin as pg

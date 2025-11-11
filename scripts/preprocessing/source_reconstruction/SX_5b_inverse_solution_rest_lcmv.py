@@ -60,9 +60,9 @@ filters = mne.beamformer.make_lcmv(
 
 stcs = mne.beamformer.apply_lcmv_epochs(epochs_meg, filters)
 
-labels_path = pathjoin(subjects_dir, i_subj, "mri", "aparc.a2009s+aseg.mgz")
+labels_path = pathjoin(subjects_dir, i_subj, "mri", "aparc+aseg.mgz")
 parcellated_ts = mne.extract_label_time_course(
-    stcs, labels_path, src, # allow_empty=True
+    stcs, labels_path, src, allow_empty=True
 )
 
 labels = mne.get_volume_labels_from_aseg(labels_path)
@@ -94,5 +94,5 @@ acfs /= n_good_trials
 
 freqs, psd = signal.periodogram(catenated_data, fs=epochs_meg.info["sfreq"], window="hamming", axis=2)
 
-pklsave(pathjoin(subj_preprocpath, "rest", "source_lcmv.pkl"), {"acfs": acfs, "catenated_data": catenated_data, "freqs": freqs, "psd": psd, "labels": labels})
-print(f"Saved source_lcmv.pkl for {i_subj}")
+pklsave(pathjoin(subj_preprocpath, "rest", "source_lcmv_aparc.pkl"), {"acfs": acfs, "catenated_data": catenated_data, "freqs": freqs, "psd": psd, "labels": labels})
+print(f"Saved source_lcmv_aparc.pkl for {i_subj}")

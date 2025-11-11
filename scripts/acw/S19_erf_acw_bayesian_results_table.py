@@ -213,16 +213,27 @@ az.plot_trace(
 plt.savefig(join(figpath_supp, "trace_acw_erf.png"), dpi=300)
 
 # Forest plots of relevant parameters
-plt.rcParams.update({"font.size": 24})
+plt.rcParams.update({"font.size": 36})
 var_names_forest = ["mERF", "mERF|Trial", "mERF|Cluster", "mERF + mERF|Trial", "mERF + mERF|Cluster"]
-f, ax = plt.subplots(1, 1, figsize=(25, 12), dpi=300)
+f, ax = plt.subplots(1, 1, figsize=(44, 22), dpi=300)
 az.plot_forest(results, 
             var_names=var_names_forest, combined=True, ax=ax, rope=[-0.1, 0.1], colors="black")
 ax.set_title("ACW ~ mERF + mERF|Trial + mERF|Cluster + mERF|Channel")
-# plt.yticks(fontsize=24)
-plt.xticks(fontsize=24)
+plt.yticks(fontsize=32)
+plt.xticks(fontsize=32)
 ax.axvline(0, color="black", linestyle="--")
-f.savefig(join(figpath_supp, "forest_acw_erf.png"), dpi=300)
+f.savefig(join(figpath_supp, "forest_acw_erf_tmp.png"))
+
+# plt.rcParams.update({"font.size": 24})
+# var_names_forest = ["mERF", "mERF|Trial", "mERF|Cluster", "mERF + mERF|Trial", "mERF + mERF|Cluster"]
+# f, ax = plt.subplots(1, 1, figsize=(25, 12), dpi=300)
+# az.plot_forest(results, 
+#             var_names=var_names_forest, combined=True, ax=ax, rope=[-0.1, 0.1], colors="black")
+# ax.set_title("ACW ~ mERF + mERF|Trial + mERF|Cluster + mERF|Channel")
+# # plt.yticks(fontsize=24)
+# plt.xticks(fontsize=24)
+# ax.axvline(0, color="black", linestyle="--")
+# f.savefig(join(figpath_supp, "forest_acw_erf.png"), dpi=300)
 
 ###### Topoplot of Channel Specific Effects #######
 

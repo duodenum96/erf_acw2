@@ -19,6 +19,10 @@ from scipy.optimize import curve_fit
 def acf_oscillatory_function(t, a, tau, f):
     return a * np.exp(-t / tau) + (1 - a) * np.cos(2 * np.pi * f * t)
 
+
+def acf_decay_function(t, tau):
+    return np.exp(-t / tau)
+
 def calc_acw(ts, fs, nlags=None):
     """
     Parameters
@@ -402,6 +406,26 @@ def badchan_padnan_3d(i_chlist, data, n_epoch, nchan=272):
 
     return paddata
 
+def badchan_padnan_tfr(i_chlist, data, nchan=272):
+ 
+    missingchan = np.setdiff1d(chlist, i_chlist)
+    where = []
+    for j in missingchan:
+        where.append(np.where(chlist == np.array([j])))
+    where = np.squeeze(np.array(where))  # fucking mental gymnastics
+
+    nfreq, ntime = data.shape[1], data.shape[2]
+    goodchan = np.setdiff1d(np.arange(nchan), where)
+    paddata = np.zeros((nchan, nfreq, ntime))
+    paddata[goodchan, :, :] = data
+
+    if where.shape == ():
+        badchan = where.item()
+        paddata[badchan, :, :] = np.nan
+    elif len(where) != 0:
+        paddata[where, :, :] = np.nan
+
+    return paddata
 
 def get_commonsubj():
     subjlist = subjs()
@@ -611,7 +635,7 @@ def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name="shiftedcmap"):
         cdict["alpha"].append((si, a, a))
 
     newcmap = mpl.colors.LinearSegmentedColormap(name, cdict)
-    mpl.colormaps.register(cmap=newcmap)
+    # mpl.colormaps.register(cmap=newcmap)
 
     return newcmap
 

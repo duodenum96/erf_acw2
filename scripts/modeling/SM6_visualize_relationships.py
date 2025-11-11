@@ -57,16 +57,52 @@ ys = ["ERF"]
 rho = corr_results["r"][0]
 p = p2str(corr_results["p-unc"][0])
 
-plot = (
-    so.Plot(data)
-    .layout(size=(4, 4))
-    .pair(x=["ACW"], y=["ERF"])
-    .add(so.Dot(), color="Color:\n$\\gamma_1$")
-    .add(so.Line(color="black"), so.PolyFit(order=1))
-    .label(x="ACW (s)", y="mERF")
-    .theme({"axes.labelsize": 16})
-    .save(join(figpath, "variable_corrs.jpg"), dpi=800)
-)
+# plot = (
+#     so.Plot(data)
+#     .layout(size=(4, 4))
+#     .pair(x=["ACW"], y=["ERF"])
+#     .add(so.Dot(), color="Color:\n$\\gamma_1$")
+#     .add(so.Line(color="black"), so.PolyFit(order=1))
+#     .label(x="ACW (s)", y="mERF")
+#     .theme({"axes.labelsize": 16})
+#     .save(join(figpath, "variable_corrs.jpg"), dpi=800)
+# )
+
+###########################################################################################
+
+# Create scatterplot with matplotlib and colorbar
+fig, ax = plt.subplots(figsize=(6, 4))
+
+# Create the scatter plot with gamma values as colors
+gamma_values = np.tile(gamma1, [nsim, 1]).T.ravel()
+acw_values = acw50s.ravel()
+erf_values = erfs.ravel()
+
+scatter = ax.scatter(acw_values, erf_values, c=gamma_values, 
+                    cmap='viridis', alpha=0.7, s=20)
+ax.grid(False)
+# Add colorbar
+cbar = plt.colorbar(scatter, ax=ax)
+cbar.set_label('$\\gamma_1$', fontsize=16)
+
+# Add regression line
+z = np.polyfit(acw_values, erf_values, 1)
+p = np.poly1d(z)
+ax.plot(acw_values, p(acw_values), "k-", alpha=0.8, linewidth=2)
+
+# Set labels and styling
+ax.set_xlabel('ACW (s)', fontsize=16)
+ax.set_ylabel('mERF', fontsize=16)
+ax.grid(False)
+ax.tick_params(labelsize=12)
+ax.spines['right'].set_visible(False)
+ax.spines['top'].set_visible(False)
+
+# Adjust layout and save
+plt.tight_layout()
+plt.savefig(join(figpath, "variable_corrs_tmp.png"), dpi=300, bbox_inches='tight', transparent=True)
+
+###########################################################################################
 
 corr_results = pg.pairwise_corr(data, padjust="fdr_bh")
 # ACW - ERF: r = 0.517***
@@ -89,9 +125,78 @@ data = data.rename(columns={"ACW": "ACW (s)", "ERF": "mERF"})
     .pair(y=["ACW (s)", "mERF"], wrap=1)
     .add(so.Dot(), color="Color:\n$\\gamma_1$")
     .add(so.Line(color="black"), so.PolyFit(order=1))
-    .theme({"axes.labelsize": 16})
-    .save(join(figpath, "gamma_corrs.jpg"), dpi=800)
+    .theme({"axes.labelsize": 16, "axes.grid": False, "axes.spines.right": False, "axes.spines.top": False})
+    .save(join(figpath, "gamma_corrs.jpg"))
 )
+# (
+#     so.Plot(data, x="$\\gamma_1$")
+#     .layout(size=(8, 4))
+#     .pair(y=["ACW (s)", "mERF"], wrap=1)
+#     .add(so.Dot(), color="Color:\n$\\gamma_1$")
+#     .add(so.Line(color="black"), so.PolyFit(order=1))
+#     .theme({"axes.labelsize": 16})
+#     .save(join(figpath, "gamma_corrs.jpg"), dpi=800)
+# )
+
+################################################################################################
+# Create matplotlib version of gamma correlations plot with shared colorbar
+
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+# Create matplotlib version of gamma correlations plot with shared colorbar
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
+
+# Extract data
+gamma_values = np.tile(gamma1, [nsim, 1]).T.ravel()
+acw_values = acw50s.ravel()
+erf_values = erfs.ravel()
+
+# First subplot: ACW vs gamma1
+scatter1 = ax1.scatter(gamma_values, acw_values, c=gamma_values, 
+                      cmap='viridis', alpha=0.7, s=20)
+
+# Add regression line for ACW
+z1 = np.polyfit(gamma_values, acw_values, 1)
+p1 = np.poly1d(z1)
+ax1.plot(gamma_values, p1(gamma_values), "k-", alpha=0.8, linewidth=2)
+
+# Style first subplot
+ax1.set_xlabel('$\\gamma_1$', fontsize=16)
+ax1.set_ylabel('ACW (s)', fontsize=16)
+ax1.grid(False)
+ax1.tick_params(labelsize=12)
+ax1.spines['right'].set_visible(False)
+ax1.spines['top'].set_visible(False)
+
+
+# Second subplot: mERF vs gamma1
+scatter2 = ax2.scatter(gamma_values, erf_values, c=gamma_values, 
+                      cmap='viridis', alpha=0.7, s=20)
+
+# Add regression line for mERF
+z2 = np.polyfit(gamma_values, erf_values, 1)
+p2 = np.poly1d(z2)
+ax2.plot(gamma_values, p2(gamma_values), "k-", alpha=0.8, linewidth=2)
+
+# Style second subplot
+ax2.set_xlabel('$\\gamma_1$', fontsize=16)
+ax2.set_ylabel('mERF', fontsize=16)
+ax2.grid(False)
+ax2.tick_params(labelsize=12)
+ax2.spines['right'].set_visible(False)
+ax2.spines['top'].set_visible(False)
+
+# Create properly sized colorbar
+divider = make_axes_locatable(ax2)
+cax = divider.append_axes("right", size="5%", pad=0.1)
+cbar = fig.colorbar(scatter2, cax=cax)
+cbar.set_label('$\\gamma_1$', fontsize=14)
+
+# Adjust layout and save
+plt.tight_layout()
+plt.savefig(join(figpath, "gamma_corrs_tmp.png"), dpi=800, bbox_inches='tight', transparent=True)
+
+#################################################################################################
 
 pg.pairwise_corr(data, [["$\gamma_1$"], ["ACW (s)", "mERF"]], padjust="fdr_bh")
 
@@ -110,6 +215,7 @@ g = (
     .add(so.Line(color="black"), so.PolyFit(order=1))
     .label(title="$\\gamma_1$ = {}".format)
     .layout(size=(12, 4))
+    .theme({"axes.grid": False, "axes.spines.right": False, "axes.spines.top": False})
 )
 plt.legend("off")
 g.save(join(figpath, "gamma1_scatterplots.jpg"), dpi=800)

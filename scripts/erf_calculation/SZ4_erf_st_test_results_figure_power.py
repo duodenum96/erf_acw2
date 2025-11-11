@@ -1,0 +1,391 @@
+##### Visualize spatiotemporal clusters
+# In the main figure we only report significant clusters (after multiple comparisons)
+# Pass or fail indicates those
+
+import numpy as np
+import mne
+from os.path import join as pathjoin
+import matplotlib.pyplot as plt
+from erf_acw2.meg_chlist import chlist
+from erf_acw2.src import pklsave, pklload, get_commonsubj, p2str, shiftedColorMap
+import scipy as sp
+from mne.viz import plot_compare_evokeds
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+import matplotlib
+import pingouin as pg
+import pandas as pd
+import matplotlib.patches as patches
+import matplotlib as mpl
+import matplotlib.colors as colors_mpl
+figpath = "/BICNAS2/ycatal/erf_acw2/figures/figs/figure2"
+taskname = "haririhammer"
+
+
+subjs_common = get_commonsubj()
+nsubj = len(subjs_common)
+
+tasknames = ["encode_face_happy", "probe_face_happy", 
+             "encode_face_sad", "probe_face_sad", 
+             "encode_shape", "probe_shape"]
+
+tasks_power = {i: [] for i in tasknames}
+tasks_itpc = {i: [] for i in tasknames}
+
+for i, i_subj in enumerate(subjs_common):
+    filename = pathjoin(
+        f"/BICNAS2/ycatal/erf_acw2/results/erf/{taskname}",
+        f"{i_subj}_{taskname}_erf_emo_induced_power.pkl",
+    )
+    epochsdict = pklload(filename)
+    for j in tasknames:
+        tasks_power[j].append(epochsdict["induced_power"][j])
+        tasks_itpc[j].append(epochsdict["induced_itpc"][j])
+
+
+# Equalize channels, there is one bad channel in some subjects that is messing up things everything. Unfortunately we need to
+# take it out from all subjects.
+template_bad = tasks_power["encode_face_happy"][17]
+for i, i_subj in enumerate(subjs_common):
+    for j in tasknames:
+        tasks_power[j][i] = mne.channels.equalize_channels([template_bad, tasks_power[j][i]])[1]
+        tasks_itpc[j][i] = mne.channels.equalize_channels([template_bad, tasks_itpc[j][i]])[1]
+# done
+
+
+all_effects = ["A", "B"]
+effect_names = ["factor_encprob", "factor_emo"]
+# Plan:
+# 1) Happy vs Sad vs Shape (for encode and probe)
+# 2) Encode vs Probe (for happy, sad and shape)
+
+tests = ["factor_emo", "factor_emo", "factor_encprob", "factor_encprob", "factor_encprob"]
+
+y_left_bottom = 1.8
+y_left_bottom2 = 1.9
+y_left_top = 2.0
+y_left_top2 = 2.1
+stat_text_coords = [0.5, 1.5, 1.0]
+# stat_text_ycoords = [115, 115, 125]
+stat_text_ycoords = [1.8, 1.8, 2.1]
+stat_line_coords = [[0,0,1,1], [1,1,2,2], [0,0,2,2]]
+# stat_line_ycoords = [[110,115,115,110], [110,115,115,110], [115,125,125,115]]
+stat_line_ycoords = [[y_left_bottom,y_left_top,y_left_top,y_left_bottom],
+                     [y_left_bottom,y_left_top,y_left_top,y_left_bottom],
+                     [y_left_bottom2,y_left_top2,y_left_top2,y_left_bottom2]]
+
+Xs_power = [
+    [tasks_power["encode_face_happy"], tasks_power["encode_face_sad"], tasks_power["encode_shape"]], 
+    [tasks_power["probe_face_happy"], tasks_power["probe_face_sad"], tasks_power["probe_shape"]],
+    [tasks_power["encode_face_happy"], tasks_power["probe_face_happy"]],
+    [tasks_power["encode_face_sad"], tasks_power["probe_face_sad"]],
+    [tasks_power["encode_shape"], tasks_power["probe_shape"]]
+]
+
+Xs_itpc = [
+    [tasks_itpc["encode_face_happy"], tasks_itpc["encode_face_sad"], tasks_itpc["encode_shape"]], 
+    [tasks_itpc["probe_face_happy"], tasks_itpc["probe_face_sad"], tasks_itpc["probe_shape"]],
+    [tasks_itpc["encode_face_happy"], tasks_itpc["probe_face_happy"]],
+    [tasks_itpc["encode_face_sad"], tasks_itpc["probe_face_sad"]],
+    [tasks_itpc["encode_shape"], tasks_itpc["probe_shape"]]
+]
+comparisons = [
+    ["encode_face_happy", "encode_face_sad", "encode_shape"], 
+    ["probe_face_happy", "probe_face_sad", "probe_shape"],
+    ["encode_face_happy", "probe_face_happy"],
+    ["encode_face_sad", "probe_face_sad"],
+    ["encode_shape", "probe_shape"]
+]
+
+comparisons_nicer = [
+    ["encode face happy", "encode face sad", "encode shape"], 
+    ["probe face happy", "probe face sad", "probe shape"],
+    ["encode face happy", "probe face happy"],
+    ["encode face sad", "probe face sad"],
+    ["encode shape", "probe shape"]
+]
+comparisons_short = [
+    ["efh", "efs", "es"], 
+    ["pfh", "pfs", "ps"],
+    ["efh", "pfh"],
+    ["efs", "pfs"],
+    ["es", "ps"]
+]
+
+comparisons_nicer2 = ["Happy - Sad - Shape", "Happy - Sad - Shape", "Encode - Probe", "Encode - Probe", "Encode - Probe"]
+comparisons_nicer3 = [
+    ["Happy", "Sad", "Shape"], 
+    ["Happy", "Sad", "Shape"], 
+    ["Encode", "Probe"],
+    ["Encode", "Probe"],
+    ["Encode", "Probe"]
+]
+suptitles = ["Encode", "Probe", "Happy", "Sad", "Shape"]
+
+adj = pklload("/BICNAS2/ycatal/erf_acw2/erf_acw2/adjacency.pkl")
+ttestfunc = lambda a, b: sp.stats.ttest_ind(a, b, nan_policy="omit")[0]
+matplotlib.rcParams.update({'font.size': 16})
+
+# Colors:
+# encode face happy: crimson, encode face sad: steelblue, encode shape: darkorchid
+# probe face happy: maroon, probe face sad: turquoise, probe shape: forestgreen
+colors_list = [
+    ["crimson", "steelblue",  "darkorchid"],
+    ["maroon", "turquoise", "forestgreen"],
+    ["crimson", "maroon"],
+    ["steelblue", "turquoise"],
+    ["darkorchid", "forestgreen"]
+]
+
+
+pass_or_fail_power = [] # is there a significance after violin plots
+multcomps_power = []
+for i in range(len(Xs_power)):
+    #######################################
+    # plot
+    #######################################
+
+    loadname = f"/BICNAS2/ycatal/erf_acw2/results/erf/haririhammer/{taskname}_erp_permutationtest_st_emo_" \
+               f"{tests[i]}_induced_power_p_0d001_baseline.pkl"
+    cluster_results = pklload(loadname)
+
+    p_accept = 0.001
+    good_cluster_inds = np.where(cluster_results["cluster_p"] < p_accept)[0]
+    print(good_cluster_inds)
+
+    # configure variables for visualization
+    colors = {comparisons[i][j]: colors_list[i][j] for j in range(len(colors_list[i]))}
+
+    # organize data for plotting
+    # evokeds = {cond: mne.grand_average(tasks[cond]) for cond in comparisons[i]}
+    evokeds = {cond: tasks_power[cond] for cond in comparisons[i]}
+
+    # loop over clusters
+    for i_clu, clu_idx in enumerate(good_cluster_inds):
+        # unpack cluster information, get unique indices
+
+        freq_inds, time_inds, space_inds = np.squeeze(cluster_results["clusters"][clu_idx])
+        ch_inds = np.unique(space_inds)
+        time_inds = np.unique(time_inds)
+        freq_inds = np.unique(freq_inds)
+
+        # get topography for F stat
+        ch_all_idx = np.arange(272)
+        f_map = cluster_results["stats"][np.ix_(freq_inds, time_inds, ch_all_idx)].mean(axis=(0, 1))
+        i_chlist = template_bad.info["ch_names"]
+        
+        cluster_stats = cluster_results["stats"]
+
+        badchan = np.where(chlist == np.setdiff1d(chlist, i_chlist))[0]
+        f_map_clean = np.delete(f_map, badchan)
+
+        # get signals at the sensors contributing to the cluster
+        times = evokeds[comparisons[i][0]][0].times
+        sig_times = template_bad.times[time_inds]
+
+        freqs = evokeds[comparisons[i][0]][0].freqs
+        sig_freqs = freqs[freq_inds]
+
+        # Find the matching picks
+        goodchans = np.array(chlist)[ch_inds]
+        picks = []
+        for k in goodchans:
+            idx = np.where(k == np.array(i_chlist))[0]
+            if len(np.where(k == np.array(i_chlist))[0]) == 0:
+                continue
+            else:
+                picks.append(idx[0])
+        picks = np.array(picks)
+
+        # create spatial mask
+        mask = np.zeros((f_map_clean.shape[0], 1), dtype=bool)
+        mask[picks, :] = True
+        
+        gas = {i: mne.grand_average(evokeds[i]).pick(picks).get_data().mean(axis=0) for i in evokeds.keys()}
+        all_gas = np.array([gas[i] for i in gas.keys()])
+
+        keys = list(gas.keys())
+
+        # initialize figure
+        fig, ax_topo = plt.subplots(1, 1, figsize=(19, 4), layout="constrained")
+
+        # plot average test statistic and mark significant sensors
+        f_evoked = mne.EvokedArray(f_map_clean[:, np.newaxis], template_bad.info, tmin=0)
+        f_evoked.plot_topomap(
+            times=0,
+            mask=mask,
+            axes=ax_topo,
+            cmap="viridis",
+            vlim=(np.min, np.max),
+            show=False,
+            colorbar=False,
+            mask_params=dict(markersize=10),
+        )
+        image = ax_topo.images[0]
+
+        # remove the title that would otherwise say "0.000 s"
+        ax_topo.set_title("")
+        ax_topo.set_title(f"{suptitles[i]}\n{comparisons_nicer2[i]}      ", 
+            loc="left", fontsize=16)
+
+        # create additional axes (for ERF and colorbar)
+        divider = make_axes_locatable(ax_topo)
+
+        # add axes for colorbar
+        ax_colorbar = divider.append_axes("right", size="5%", pad=0.05)
+        plt.colorbar(image, cax=ax_colorbar)
+        ax_topo.set_xlabel(
+            "Averaged F-map\n({:0.3f} - {:0.3f} s)".format(*sig_times[[0, -1]])
+        , loc="left", fontweight="bold")
+        ax_topo.ticklabel_format(useMathText=True)
+
+        #################################################################
+        # add new axis for time courses and plot time courses
+        # ax_signals = divider.append_axes("right", size="300%", pad=1.2)
+        # if suptitles[i] == "Encode":
+        #     title = "Encode Cluster #{0}, {1} sensor".format(i_clu + 1, len(ch_inds))
+        # elif suptitles[i] == "Probe":
+        #     title = "Probe Cluster #{0}, {1} sensors".format(i_clu + 1, len(ch_inds))
+        # else:
+        #     title = "Cluster #{0}, {1} sensor".format(i_clu + 1, len(ch_inds))
+        title = "Cluster #{0}, {1} sensor".format(i_clu + 1, len(ch_inds))
+
+        if len(ch_inds) > 1:
+            title += "s"
+            None
+       
+        vlim = (np.min(all_gas), np.max(all_gas))
+        # Create three new axes for the vertical panels
+        if len(keys) == 3:
+            ax_signals1 = divider.append_axes("right", size="100%", pad=1.6)
+            ax_signals2 = divider.append_axes("right", size="100%", pad=0.1)
+            ax_signals3 = divider.append_axes("right", size="100%", pad=0.1)
+
+            ax_signals = [ax_signals1, ax_signals2, ax_signals3]
+        else:
+            ax_signals1 = divider.append_axes("right", size="100%", pad=1.6)
+            ax_signals2 = divider.append_axes("right", size="100%", pad=0.1)
+
+            ax_signals = [ax_signals1, ax_signals2]
+
+        times_filter_idx = (times > -0.23) & (times < 0.63)
+        times_filtered = times[times_filter_idx]
+        imshows = []
+        for k in range(len(ax_signals)):
+            idx = np.argmax([np.abs(1 - i) for i in vlim])
+            difference = np.abs(vlim[idx] - 1)
+            if idx == 0:
+                cm_lim = [vlim[idx], 1 + difference]
+            else:
+                cm_lim = [1 - difference, vlim[idx]]
+            # cmap = shiftedColorMap(mpl.cm.PiYG, start=cm_lim[0], stop=cm_lim[1], midpoint=1.0)
+
+            ims = ax_signals[k].imshow(gas[keys[k]][:, times_filter_idx],
+                                 origin="lower",
+                                 extent=[times_filtered[0], times_filtered[-1], freqs[0], freqs[-1]],
+                                 aspect="auto",
+                                #  vmin=cm_lim[0],
+                                #  vmax=cm_lim[1],
+                                 cmap=mpl.cm.PiYG,
+                                 norm=colors_mpl.CenteredNorm(vcenter=1.0)
+                                 )
+            imshows.append(ims)
+            rect = patches.Rectangle((sig_times[0], sig_freqs[0]), sig_times[-1]-sig_times[0], sig_freqs[-1]-sig_freqs[0],
+                                     linewidth=2, edgecolor="r", facecolor="none") 
+            ax_signals[k].add_patch(rect)
+            keys_3_nice = [["Happy", "Sad", "Shape"], ["Encode", "Probe"]]
+            if len(keys) == 3:
+                ax_signals[k].set_title(keys_3_nice[0][k])
+            else:
+                ax_signals[k].set_title(keys_3_nice[1][k])
+
+            if k != 0:
+                ax_signals[k].set_yticks([])
+
+        # Colorbar
+        cb_ax = divider.append_axes("right", size="5%", pad=0.05)
+        fig.colorbar(imshows[-1], cax=cb_ax) 
+
+        # Add new axis for comparing ERFs
+        ax_comparison = divider.append_axes("right", size="100%", pad=1.3)
+        if i_clu in [0, 1, 2, 3]:
+            title = "Encode Cluster #{0}, {1} sensor".format(i_clu + 1, len(ch_inds))
+        else:
+            title = "Probe Cluster #{0}, {1} sensors".format(i_clu + 1, len(ch_inds))
+
+        # Average the activity inside the shaded area for each subject
+        erf_violins = {comparisons[i][k]: [] for k in range(len(comparisons[i]))}
+        for k, k_comp in enumerate(comparisons[i]):
+            nsubj = len(evokeds[k_comp])
+            for l in range(nsubj):
+                erf_violins[k_comp].append(np.mean( # rms
+                    evokeds[k_comp][l].get_data()[np.ix_(picks, freq_inds, time_inds)])
+                )
+
+        violins = ax_comparison.violinplot([erf_violins[m] for m in erf_violins.keys()], positions=np.arange(len(erf_violins)), showextrema=False)
+        for i_pc, pc in enumerate(violins["bodies"]):
+            pc.set_facecolor(colors[comparisons[i][i_pc]])
+            pc.set_edgecolor("k")
+
+        for m, m_key in enumerate(erf_violins.keys()):
+            ax_comparison.scatter(m*np.ones_like(erf_violins[m_key]) + np.random.randn(len(erf_violins[m_key]))*0.1, erf_violins[m_key], color="black",
+                                s=2)
+
+        ax_comparison.set_xticks(np.arange(len(erf_violins.keys())), comparisons_short[i])
+        ax_comparison.spines[['right', 'top']].set_visible(False)
+        ax_comparison.set_ylabel("Power (Ratio)")
+
+        # Multiple comparisons
+        multcomp = pg.pairwise_tests(pd.melt(pd.DataFrame(erf_violins), value_vars=erf_violins.keys()), dv="value", between="variable", 
+                                     effsize="cohen", padjust="fdr_bh") # 1-2, 1-3, 2-3
+
+        multcomps_power.append(multcomp)
+        stattexts = []
+        for m in range(len(multcomp)):
+            m_row = multcomp.iloc[m, :]
+            if len(multcomp) == 3:
+                stattexts.append(f"{p2str(m_row["p-corr"])}")
+            else:
+                stattexts.append(f"{p2str(m_row["p-unc"])}")
+
+        if len(multcomp) == 3:
+            pass_or_fail_power.append(np.any(multcomp["p-corr"].to_numpy() < 0.05))
+        else:
+            pass_or_fail_power.append(np.any(multcomp["p-unc"].to_numpy() < 0.05))
+
+        for m in range(len(multcomp)):
+            plt.plot(stat_line_coords[m], stat_line_ycoords[m], color="black")
+            plt.text(stat_text_coords[m], stat_text_ycoords[m], stattexts[m], ha='center', va='bottom', fontsize=10)
+
+        # ax_comparison.set_ylim((0, 140))
+
+        if pass_or_fail_power[-1]:
+            fig.savefig(pathjoin(figpath, "induced", f"{taskname}_{i}_cluster{i_clu}_face_vs_shape_X_induced_power.png")) #, dpi=300, transparent=False)
+        else:
+            fig.savefig(pathjoin(figpath, "induced", f"{taskname}_{i}_cluster{i_clu}_face_vs_shape_induced_power.png")) #, dpi=300, transparent=False)
+
+p_corrs = []
+ts = []
+cohens = []
+As = []
+Bs = []
+for i, i_multcomp in enumerate(multcomps_power):
+    if pass_or_fail_power[i]:
+        if len(i_multcomp) != 3:
+            p_corrs.append(i_multcomp["p-unc"].values[0])
+            ts.append(i_multcomp["T"].values[0])
+            cohens.append(i_multcomp["cohen"].values[0])
+            As.append(i_multcomp["A"].values[0])
+            Bs.append(i_multcomp["B"].values[0])
+        else:
+            for j in range(3):
+                p_corrs.append(i_multcomp["p-corr"][j])
+                ts.append(i_multcomp["T"][j])
+                cohens.append(i_multcomp["cohen"][j])
+                As.append(i_multcomp["A"][j])
+                Bs.append(i_multcomp["B"][j])
+
+pd.DataFrame({"As": As, "Bs": Bs, "T": ts, "p_corr": p_corrs, "cohen": cohens}).to_csv(
+    pathjoin(figpath, "induced", f"multcomp_results.csv")
+)
+
+pklsave(pathjoin(figpath, "induced", f"pass_or_fail.pkl"), {"pass_or_fail": pass_or_fail_power})

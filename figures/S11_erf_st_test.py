@@ -178,7 +178,9 @@ for i in range(len(Xs)):
         image = ax_topo.images[0]
 
         # remove the title that would otherwise say "0.000 s"
-        ax_topo.set_title(f"{suptitles[i]}     \n{comparisons_nicer2[i]}     ")
+        ax_topo.set_title("")
+        ax_topo.set_title(f"{suptitles[i]}\n{comparisons_nicer2[i]}      ", 
+            loc="left", fontsize=16)
 
         # create additional axes (for ERF and colorbar)
         divider = make_axes_locatable(ax_topo)
@@ -187,18 +189,19 @@ for i in range(len(Xs)):
         ax_colorbar = divider.append_axes("right", size="5%", pad=0.05)
         plt.colorbar(image, cax=ax_colorbar)
         ax_topo.set_xlabel(
-            "Averaged F-map ({:0.3f} - {:0.3f} s)".format(*sig_times[[0, -1]])
-        )
+            "Averaged F-map\n({:0.3f} - {:0.3f} s)".format(*sig_times[[0, -1]])
+        , loc="left", fontweight="bold")
         ax_topo.ticklabel_format(useMathText=True)
 
         # add new axis for time courses and plot time courses
         ax_signals = divider.append_axes("right", size="300%", pad=1.2)
-        if suptitles[i] == "Encode":
-            title = "Encode Cluster #{0}, {1} sensor".format(i_clu + 1, len(ch_inds))
-        elif suptitles[i] == "Probe":
-            title = "Probe Cluster #{0}, {1} sensors".format(i_clu + 1, len(ch_inds))
-        else:
-            title = "Cluster #{0}, {1} sensor".format(i_clu + 1, len(ch_inds))
+        # if suptitles[i] == "Encode":
+        #     title = "Encode Cluster #{0}, {1} sensor".format(i_clu + 1, len(ch_inds))
+        # elif suptitles[i] == "Probe":
+        #     title = "Probe Cluster #{0}, {1} sensors".format(i_clu + 1, len(ch_inds))
+        # else:
+        #     title = "Cluster #{0}, {1} sensor".format(i_clu + 1, len(ch_inds))
+        title = "Cluster #{0}, {1} sensor".format(i_clu + 1, len(ch_inds))
         
 
         if len(ch_inds) > 1:
@@ -281,9 +284,9 @@ for i in range(len(Xs)):
 
         
         if pass_or_fail[-1]:
-            fig.savefig(pathjoin(figpath, f"{taskname}_{i}_cluster{i_clu}_face_vs_shape_X.jpg"), dpi=800)
+            fig.savefig(pathjoin(figpath, f"{taskname}_{i}_cluster{i_clu}_face_vs_shape_X.png"), dpi=300, transparent=True)
         else:
-            fig.savefig(pathjoin(figpath, f"{taskname}_{i}_cluster{i_clu}_face_vs_shape.jpg"), dpi=800)
+            fig.savefig(pathjoin(figpath, f"{taskname}_{i}_cluster{i_clu}_face_vs_shape.png"), dpi=300, transparent=True)
 
 p_corrs = []
 ts = []
